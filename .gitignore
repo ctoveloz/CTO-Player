@@ -5,3 +5,5 @@ nul
 .env
 .DS_Store
 Thumbs.db
+.claude/
+.vscode/
