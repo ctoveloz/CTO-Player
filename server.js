@@ -16,7 +16,7 @@ const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50, timeout: 1
 httpsAgent.setMaxListeners(0);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3125;
 
 // Trust reverse proxy (nginx, etc.) for correct client IP
 app.set('trust proxy', 1);
