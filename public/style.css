@@ -227,6 +227,35 @@ input::placeholder { color: var(--text-muted); }
   color: #fff !important;
 }
 
+.btn-refresh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-refresh.refreshing svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.refresh-progress {
+  margin-top: 12px;
+}
+
+.refresh-progress .progress-bar {
+  margin-bottom: 6px;
+}
+
+#refresh-status {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .topbar-tabs {
   display: flex;
   gap: 4px;

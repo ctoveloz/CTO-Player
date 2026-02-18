@@ -142,6 +142,24 @@
 
         <button type="submit" class="btn-primary">Salvar Configurações</button>
       </form>
+
+      <div class="settings-card">
+        <h2 class="settings-section-title">Playlist</h2>
+        <div class="setting-item">
+          <div class="setting-info">
+            <label>Atualizar lista</label>
+            <p class="setting-desc">Baixa novamente a playlist do servidor para atualizar canais, filmes e séries. A lista também é atualizada automaticamente ao abrir o app.</p>
+          </div>
+          <button id="btn-refresh" class="btn-primary btn-refresh">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            <span id="btn-refresh-text">Atualizar</span>
+          </button>
+        </div>
+        <div id="refresh-progress" class="refresh-progress" hidden>
+          <div class="progress-bar"><div id="refresh-progress-fill" class="progress-fill"></div></div>
+          <span id="refresh-status">Atualizando...</span>
+        </div>
+      </div>
     </div>
   </div>
 

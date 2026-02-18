@@ -40,6 +40,7 @@ const state = {
   allFilteredItems: [],
   itemsToShow: 200,
   isLoadingMore: false,
+  isRefreshing: false,
 };
 
 // ===================== DOM REFS =====================
@@ -71,6 +72,8 @@ async function restoreSession() {
     if (res.ok) {
       state.playlist = await res.json();
       showDashboard();
+      // Auto-refresh playlist in background
+      refreshPlaylist(true);
     }
   } catch (e) {
     // No saved session, stay on login
@@ -294,6 +297,78 @@ function showDashboard() {
   showView('dashboard');
   renderSidebar();
   renderContent();
+}
+
+async function refreshPlaylist(silent) {
+  const btn = $('#btn-refresh');
+  const btnText = $('#btn-refresh-text');
+  const progressEl = $('#refresh-progress');
+  const progressFill = $('#refresh-progress-fill');
+  const statusEl = $('#refresh-status');
+
+  if (state.isRefreshing) return;
+  state.isRefreshing = true;
+  btn.classList.add('refreshing');
+  btn.disabled = true;
+
+  if (!silent) {
+    btnText.textContent = 'Atualizando...';
+    progressEl.hidden = false;
+    progressFill.style.width = '0%';
+  }
+
+  try {
+    const res = await fetch('/api/refresh', { method: 'POST' });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let success = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const data = JSON.parse(line);
+          if (data.type === 'progress') {
+            statusEl.textContent = data.message;
+            if (data.percent != null) progressFill.style.width = data.percent + '%';
+            if (!silent) progressEl.hidden = false;
+          } else if (data.type === 'error') {
+            console.warn('[REFRESH] Error:', data.error);
+            statusEl.textContent = data.error;
+          } else if (data.type === 'done') {
+            success = true;
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    }
+
+    if (success) {
+      const playlistRes = await fetch('/api/playlist');
+      if (playlistRes.ok) {
+        state.playlist = await playlistRes.json();
+        renderSidebar();
+        renderContent();
+      }
+      statusEl.textContent = 'Lista atualizada com sucesso!';
+      progressFill.style.width = '100%';
+    }
+  } catch (err) {
+    console.warn('[REFRESH] Failed:', err.message);
+    statusEl.textContent = 'Falha ao atualizar';
+  } finally {
+    state.isRefreshing = false;
+    btn.classList.remove('refreshing');
+    btn.disabled = false;
+    btnText.textContent = 'Atualizar';
+    if (silent) progressEl.hidden = true;
+  }
 }
 
 function renderSidebar() {
@@ -946,6 +1021,7 @@ function stopPlayback() {
 function setupSettings() {
   $('#btn-settings').addEventListener('click', openSettings);
   $('#btn-back-settings').addEventListener('click', () => showView('dashboard'));
+  $('#btn-refresh').addEventListener('click', () => refreshPlaylist(false));
 
   $('#settings-form').addEventListener('submit', (e) => {
     e.preventDefault();

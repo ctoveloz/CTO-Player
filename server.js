@@ -673,6 +673,107 @@ app.post('/api/load-xtream', async (req, res) => {
   }
 });
 
+// ===================== REFRESH (re-fetch from source) =====================
+
+app.post('/api/refresh', async (req, res) => {
+  const ip = getClientIP(req);
+  if (!checkRateLimit(`refresh:${ip}`, 3)) {
+    return res.status(429).json({ error: 'Muitas atualizações. Aguarde um minuto.' });
+  }
+
+  const { entry, sid } = getSession(req);
+  if (!entry || !entry.source || !entry.credentials) {
+    return res.status(404).json({ error: 'Nenhuma sessão salva para atualizar' });
+  }
+
+  res.setHeader('Content-Type', 'application/x-ndjson');
+  res.setHeader('Cache-Control', 'no-cache');
+  const send = (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch(e) {} };
+
+  try {
+    if (entry.source === 'm3u') {
+      const url = entry.credentials.url;
+      const parsedUrl = validateExternalUrl(url);
+      if (!parsedUrl) {
+        send({ type: 'error', error: 'URL da playlist inválida' });
+        return res.end();
+      }
+
+      send({ type: 'progress', message: 'Baixando playlist atualizada...', percent: 10 });
+
+      const content = await axios.get(url, {
+        timeout: 120000,
+        maxContentLength: 200 * 1024 * 1024,
+        responseType: 'text',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      }).then(r => r.data);
+
+      if (!content.includes('#EXTM3U')) {
+        send({ type: 'error', error: 'Playlist M3U inválida' });
+        return res.end();
+      }
+
+      send({ type: 'progress', message: 'Processando playlist...', percent: 60 });
+      const playlist = parseM3U(content);
+
+      entry.playlist = playlist;
+      entry.lastAccess = Date.now();
+      sessions.set(sid, entry);
+      saveSession(sid, 'm3u', entry.credentials, playlist, null);
+
+      const stats = { live: playlist.live.count, movies: playlist.movies.count, series: playlist.series.count };
+      send({ type: 'progress', message: `Atualizado! ${stats.live} canais, ${stats.movies} filmes, ${stats.series} séries`, percent: 100 });
+      send({ type: 'done', stats });
+      res.end();
+
+    } else if (entry.source === 'xtream') {
+      const { server, username, password } = entry.credentials;
+      const base = `${server}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+
+      send({ type: 'progress', message: 'Autenticando...', percent: 5 });
+      const authRes = await axios.get(base, { timeout: 15000 });
+      if (authRes.data.user_info && authRes.data.user_info.auth === 0) {
+        send({ type: 'error', error: 'Autenticação falhou' });
+        return res.end();
+      }
+
+      send({ type: 'progress', message: 'Carregando TV ao vivo...', percent: 15 });
+      const liveCats = await axios.get(`${base}&action=get_live_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
+      const liveStreams = await axios.get(`${base}&action=get_live_streams`, { timeout: 120000 }).then(r => r.data).catch(() => []);
+
+      send({ type: 'progress', message: 'Carregando filmes...', percent: 40 });
+      const vodCats = await axios.get(`${base}&action=get_vod_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
+      const vodStreams = await axios.get(`${base}&action=get_vod_streams`, { timeout: 120000 }).then(r => r.data).catch(() => []);
+
+      send({ type: 'progress', message: 'Carregando séries...', percent: 65 });
+      const seriesCats = await axios.get(`${base}&action=get_series_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
+      const seriesData = await axios.get(`${base}&action=get_series`, { timeout: 120000 }).then(r => r.data).catch(() => []);
+
+      send({ type: 'progress', message: 'Montando playlist...', percent: 85 });
+      const xtreamCfg = { server, username, password };
+      const playlist = buildXtreamPlaylist(server, username, password, liveCats, liveStreams, vodCats, vodStreams, seriesCats, seriesData);
+
+      entry.playlist = playlist;
+      entry.xtreamConfig = xtreamCfg;
+      entry.lastAccess = Date.now();
+      sessions.set(sid, entry);
+      saveSession(sid, 'xtream', entry.credentials, playlist, xtreamCfg);
+
+      const stats = { live: playlist.live.count, movies: playlist.movies.count, series: playlist.series.count };
+      send({ type: 'progress', message: `Atualizado! ${stats.live} canais, ${stats.movies} filmes, ${stats.series} séries`, percent: 100 });
+      send({ type: 'done', stats });
+      res.end();
+
+    } else {
+      send({ type: 'error', error: 'Tipo de fonte desconhecido' });
+      res.end();
+    }
+  } catch (err) {
+    send({ type: 'error', error: 'Falha ao atualizar: ' + err.message });
+    res.end();
+  }
+});
+
 app.get('/api/playlist', (req, res) => {
   const ip = getClientIP(req);
   if (!checkRateLimit(`api:${ip}`, 60)) {
