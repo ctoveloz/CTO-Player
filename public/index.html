@@ -52,6 +52,8 @@
       </form>
 
       <div id="login-error" class="error-msg" hidden></div>
+
+      <p class="open-source-link">Projeto Open Source: <a href="https://github.com/ctoveloz/CTO-Player" target="_blank" rel="noopener">github.com/ctoveloz/CTO-Player</a></p>
     </div>
   </div>
 
@@ -192,6 +194,19 @@
           <button id="btn-next-ep-play" class="btn-primary btn-sm" onclick="playNextEpisode()">Reproduzir agora</button>
           <button id="btn-next-ep-cancel" class="btn-sm btn-cancel" onclick="cancelNextEpisode()">Cancelar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESUME DIALOG -->
+  <div id="resume-dialog" class="resume-overlay" hidden>
+    <div class="resume-card">
+      <p class="resume-title">Continuar assistindo?</p>
+      <p id="resume-item-name" class="resume-name"></p>
+      <p id="resume-time-info" class="resume-time"></p>
+      <div class="resume-actions">
+        <button id="btn-resume-yes" class="btn-primary btn-sm">Continuar de onde parei</button>
+        <button id="btn-resume-no" class="btn-sm btn-cancel">Começar do início</button>
       </div>
     </div>
   </div>

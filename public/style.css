@@ -64,6 +64,23 @@ html, body {
   margin-bottom: 28px;
 }
 
+.open-source-link {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.open-source-link a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.open-source-link a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .login-tabs {
   display: flex;
   gap: 0;
@@ -597,21 +614,27 @@ input::placeholder { color: var(--text-muted); }
   gap: 4px;
 }
 
+.episode-item-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.episode-item-wrap:hover {
+  border-color: var(--primary);
+  background: var(--surface-hover);
+}
+
 .episode-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.episode-item:hover {
-  border-color: var(--primary);
-  background: var(--surface-hover);
+  background: none;
+  border: none;
 }
 
 .episode-num {
@@ -737,7 +760,9 @@ input::placeholder { color: var(--text-muted); }
   overflow-y: auto;
   padding: 32px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
 }
 
 .settings-card {
@@ -809,6 +834,151 @@ input::placeholder { color: var(--text-muted); }
 
 .setting-input[type=number] {
   -moz-appearance: textfield;
+}
+
+/* ===== FAVORITE BUTTON ON GRID ITEMS ===== */
+.grid-item-poster {
+  position: relative;
+}
+
+.btn-fav {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.6);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 2;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.grid-item:hover .btn-fav {
+  opacity: 1;
+}
+
+.btn-fav.is-fav {
+  opacity: 1;
+  color: #fbbf24;
+}
+
+.btn-fav:hover {
+  background: rgba(0,0,0,0.8);
+  transform: scale(1.1);
+}
+
+/* ===== EPISODE PROGRESS BAR ===== */
+.episode-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.episode-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.episode-progress-fill.completed {
+  background: #22c55e;
+}
+
+.episode-item-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.episode-watched-badge {
+  font-size: 11px;
+  color: #22c55e;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ===== RESUME DIALOG ===== */
+.resume-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.resume-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+}
+
+.resume-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.resume-name {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resume-time {
+  font-size: 13px;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+
+.resume-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resume-actions .btn-primary,
+.resume-actions .btn-cancel {
+  width: 100%;
+}
+
+/* ===== GRID ITEM PROGRESS (movies) ===== */
+.grid-item-progress {
+  height: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.grid-item-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s;
+}
+
+.grid-item-progress-fill.completed {
+  background: #22c55e;
 }
 
 /* ===== RESPONSIVE ===== */

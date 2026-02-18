@@ -18,6 +18,71 @@ function saveSettings(settings) {
   state.settings = settings;
 }
 
+// ===================== FAVORITES =====================
+
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem('ctoplayer_favorites')) || {}; }
+  catch { return {}; }
+}
+
+function saveFavorites(favs) {
+  localStorage.setItem('ctoplayer_favorites', JSON.stringify(favs));
+}
+
+function getFavKey(item) {
+  if (item.isSeries) return `series:${item.seriesId || item.name}`;
+  return item.url || item.name;
+}
+
+function isFavorite(item) {
+  return !!getFavorites()[getFavKey(item)];
+}
+
+function toggleFavorite(item) {
+  const favs = getFavorites();
+  const key = getFavKey(item);
+  if (favs[key]) delete favs[key];
+  else favs[key] = true;
+  saveFavorites(favs);
+  return !!favs[key];
+}
+
+// ===================== WATCH PROGRESS =====================
+
+function getProgressData() {
+  try { return JSON.parse(localStorage.getItem('ctoplayer_progress')) || {}; }
+  catch { return {}; }
+}
+
+function saveProgressData(data) {
+  localStorage.setItem('ctoplayer_progress', JSON.stringify(data));
+}
+
+function getItemProgress(url) {
+  return getProgressData()[url] || null;
+}
+
+function saveItemProgress(url, currentTime, duration) {
+  if (!url || !duration || duration < 10) return;
+  const data = getProgressData();
+  const percent = (currentTime / duration) * 100;
+  // Mark as completed if watched > 90%
+  if (percent > 90) {
+    data[url] = { currentTime: 0, duration, percent: 100, completed: true, updatedAt: Date.now() };
+  } else {
+    data[url] = { currentTime, duration, percent: Math.round(percent), completed: false, updatedAt: Date.now() };
+  }
+  saveProgressData(data);
+}
+
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
 const state = {
   playlist: null,
   tab: 'live',
@@ -41,6 +106,8 @@ const state = {
   itemsToShow: 200,
   isLoadingMore: false,
   isRefreshing: false,
+  progressTimer: null,
+  currentStreamUrl: null,
 };
 
 // ===================== DOM REFS =====================
@@ -377,11 +444,23 @@ function renderSidebar() {
   if (!section) return;
 
   const cats = section.categories || [];
-  const totalCount = section.items ? section.items.length : 0;
+  const items = section.items || [];
+  const totalCount = items.length;
+
+  // Count favorites for current tab
+  const favs = getFavorites();
+  const favCount = items.filter(i => favs[getFavKey(i)]).length;
 
   let html = `<button class="cat-item ${state.category === 'all' ? 'active' : ''}" data-cat="all">
     <span>Todas</span><span class="cat-count">${totalCount}</span>
   </button>`;
+
+  // Favoritos category at top (only if there are favorites)
+  if (favCount > 0) {
+    html += `<button class="cat-item ${state.category === '__favs__' ? 'active' : ''}" data-cat="__favs__">
+      <span>\u2B50 Favoritos</span><span class="cat-count">${favCount}</span>
+    </button>`;
+  }
 
   for (const cat of cats) {
     const isActive = state.category === cat.name ? 'active' : '';
@@ -420,7 +499,10 @@ function renderContent(append = false) {
     }
 
     // Filter by category
-    if (state.category !== 'all') {
+    if (state.category === '__favs__') {
+      const favs = getFavorites();
+      items = items.filter(i => favs[getFavKey(i)]);
+    } else if (state.category !== 'all') {
       items = items.filter(i => i.group === state.category);
     }
 
@@ -502,27 +584,86 @@ function createGridItem(item) {
   const div = document.createElement('div');
   div.className = 'grid-item';
 
+  const fav = isFavorite(item);
   const poster = item.logo
-    ? `<img src="${escapeAttr(item.logo)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<svg class=placeholder-icon width=40 height=40 viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;><path d=&quot;M8 5v14l11-7z&quot;/></svg>'">`
+    ? `<img src="${escapeAttr(item.logo)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<svg class=placeholder-icon width=40 height=40 viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;><path d=&quot;M8 5v14l11-7z&quot;/></svg><button class=btn-fav ${fav ? 'is-fav' : ''} data-fav>${fav ? '\u2605' : '\u2606'}</button>'">`
     : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
 
+  // Progress bar for non-series items
+  let progressHtml = '';
+  if (!item.isSeries && item.url) {
+    const prog = getItemProgress(item.url);
+    if (prog && prog.percent > 0) {
+      const cls = prog.completed ? 'completed' : '';
+      progressHtml = `<div class="grid-item-progress"><div class="grid-item-progress-fill ${cls}" style="width:${prog.percent}%"></div></div>`;
+    }
+  }
+
   div.innerHTML = `
-    <div class="grid-item-poster">${poster}</div>
+    <div class="grid-item-poster">
+      ${poster}
+      <button class="btn-fav ${fav ? 'is-fav' : ''}" data-fav>${fav ? '\u2605' : '\u2606'}</button>
+    </div>
+    ${progressHtml}
     <div class="grid-item-info">
       <div class="grid-item-name" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</div>
       <div class="grid-item-group">${escapeHtml(item.group)}</div>
     </div>
   `;
 
+  // Favorite button click
+  const favBtn = div.querySelector('.btn-fav');
+  favBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const nowFav = toggleFavorite(item);
+    favBtn.classList.toggle('is-fav', nowFav);
+    favBtn.textContent = nowFav ? '\u2605' : '\u2606';
+    // Update sidebar favorite count
+    renderSidebar();
+  });
+
+  // Main click
   div.addEventListener('click', () => {
     if (item.isSeries) {
       openSeries(item);
     } else if (item.url) {
-      playStream(item.url, item.name, 'dashboard');
+      maybeResumeOrPlay(item.url, item.name, 'dashboard');
     }
   });
 
   return div;
+}
+
+// ===================== RESUME OR PLAY =====================
+
+function maybeResumeOrPlay(url, name, fromView) {
+  const prog = getItemProgress(url);
+  if (prog && !prog.completed && prog.currentTime > 10 && prog.percent < 90) {
+    // Show resume dialog
+    const dialog = $('#resume-dialog');
+    $('#resume-item-name').textContent = name;
+    $('#resume-time-info').textContent = `Parou em ${formatTime(prog.currentTime)} de ${formatTime(prog.duration)} (${prog.percent}%)`;
+    dialog.hidden = false;
+
+    const onResume = () => {
+      dialog.hidden = true;
+      cleanup();
+      playStream(url, name, fromView, prog.currentTime);
+    };
+    const onRestart = () => {
+      dialog.hidden = true;
+      cleanup();
+      playStream(url, name, fromView, 0);
+    };
+    const cleanup = () => {
+      $('#btn-resume-yes').removeEventListener('click', onResume);
+      $('#btn-resume-no').removeEventListener('click', onRestart);
+    };
+    $('#btn-resume-yes').addEventListener('click', onResume);
+    $('#btn-resume-no').addEventListener('click', onRestart);
+  } else {
+    playStream(url, name, fromView, 0);
+  }
 }
 
 // ===================== SERIES DETAIL =====================
@@ -573,6 +714,8 @@ function renderSeasons(data) {
     }
   }
 
+  const progressData = getProgressData();
+
   let html = '';
   let queueIdx = 0;
   for (const num of keys) {
@@ -582,10 +725,22 @@ function renderSeasons(data) {
       <div class="episode-list">`;
 
     for (const ep of episodes) {
-      html += `<div class="episode-item" data-url="${escapeAttr(ep.url)}" data-name="${escapeAttr(ep.name)}" data-queue-idx="${queueIdx}">
-        <span class="episode-num">E${String(ep.episode).padStart(2, '0')}</span>
-        <span class="episode-name">${escapeHtml(ep.name)}</span>
-        ${ep.duration ? `<span class="episode-duration">${escapeHtml(ep.duration)}</span>` : ''}
+      const prog = progressData[ep.url];
+      const pct = prog ? prog.percent : 0;
+      const isCompleted = prog && prog.completed;
+      const progressBar = pct > 0
+        ? `<div class="episode-progress-bar"><div class="episode-progress-fill ${isCompleted ? 'completed' : ''}" style="width:${pct}%"></div></div>`
+        : '';
+      const watchedBadge = isCompleted ? '<span class="episode-watched-badge">&#10003; Visto</span>' : '';
+
+      html += `<div class="episode-item-wrap">
+        <div class="episode-item" data-url="${escapeAttr(ep.url)}" data-name="${escapeAttr(ep.name)}" data-queue-idx="${queueIdx}">
+          <span class="episode-num">E${String(ep.episode).padStart(2, '0')}</span>
+          <span class="episode-name">${escapeHtml(ep.name)}</span>
+          ${ep.duration ? `<span class="episode-duration">${escapeHtml(ep.duration)}</span>` : ''}
+          ${watchedBadge}
+        </div>
+        ${progressBar}
       </div>`;
       queueIdx++;
     }
@@ -599,8 +754,7 @@ function renderSeasons(data) {
     el.addEventListener('click', () => {
       state.episodeQueue = queue;
       state.currentEpisodeIdx = parseInt(el.dataset.queueIdx, 10);
-      console.log('[EPISODE-CLICK] idx:', state.currentEpisodeIdx, 'queueLen:', queue.length, 'name:', el.dataset.name, 'queue[0]:', queue[0]?.name, 'queue[1]:', queue[1]?.name);
-      playStream(el.dataset.url, el.dataset.name, 'series');
+      maybeResumeOrPlay(el.dataset.url, el.dataset.name, 'series');
     });
   });
 }
@@ -627,7 +781,7 @@ function setupPlayer() {
     const video = $('#video-player');
     const src = video.dataset.originalUrl;
     const name = $('#player-title').textContent;
-    if (src) playStream(src, name, state.previousView);
+    if (src) playStream(src, name, state.previousView, video.currentTime || 0);
   });
   $('#btn-prev-ep').addEventListener('click', playPrevEpisode);
   $('#btn-next-ep').addEventListener('click', playNextEpisode);
@@ -640,8 +794,9 @@ function detectStreamType(url) {
   return 'direct'; // mp4, mkv, etc.
 }
 
-function playStream(url, name, fromView) {
+function playStream(url, name, fromView, resumeAt) {
   state.previousView = fromView || 'dashboard';
+  state.currentStreamUrl = url;
   const video = $('#video-player');
   const errorEl = $('#player-error');
 
@@ -650,9 +805,10 @@ function playStream(url, name, fromView) {
   state.playerAbort = new AbortController();
   const { signal } = state.playerAbort;
 
-  // Clear stall timer and next-ep timer
+  // Clear timers
   if (state.stallTimer) { clearInterval(state.stallTimer); state.stallTimer = null; }
   if (state.nextEpTimer) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; }
+  if (state.progressTimer) { clearInterval(state.progressTimer); state.progressTimer = null; }
   state.recoveryAttempts = 0;
 
   // Hide next-ep overlay if visible
@@ -824,6 +980,36 @@ function playStream(url, name, fromView) {
     });
   }
 
+  // Resume playback at saved position
+  if (resumeAt && resumeAt > 0) {
+    const seekOnce = () => {
+      if (video.readyState >= 1) {
+        video.currentTime = resumeAt;
+        video.removeEventListener('loadedmetadata', seekOnce);
+      }
+    };
+    video.addEventListener('loadedmetadata', seekOnce, { signal });
+  }
+
+  // Save progress periodically (every 10 seconds)
+  state.progressTimer = setInterval(() => {
+    if (!video.paused && !video.ended && video.duration && isFinite(video.duration) && video.currentTime > 5) {
+      saveItemProgress(url, video.currentTime, video.duration);
+    }
+  }, 10000);
+
+  // Save progress on pause/end
+  video.addEventListener('pause', () => {
+    if (video.duration && isFinite(video.duration) && video.currentTime > 5) {
+      saveItemProgress(url, video.currentTime, video.duration);
+    }
+  }, { signal });
+  video.addEventListener('ended', () => {
+    if (video.duration && isFinite(video.duration)) {
+      saveItemProgress(url, video.duration, video.duration);
+    }
+  }, { signal });
+
   state.nextEpTriggered = false;
 
   let overlayShown = false;
@@ -965,20 +1151,18 @@ function playPrevEpisode() {
   const prevIdx = state.currentEpisodeIdx - 1;
   const prevEp = state.episodeQueue[prevIdx];
   state.currentEpisodeIdx = prevIdx;
-  playStream(prevEp.url, prevEp.name, 'series');
+  playStream(prevEp.url, prevEp.name, 'series', 0);
 }
 
 function playNextEpisode() {
   if (state.nextEpTimer) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; }
 
   const nextIdx = state.currentEpisodeIdx + 1;
-  console.log('[NEXT-EP] currentEpisodeIdx:', state.currentEpisodeIdx, 'nextIdx:', nextIdx, 'queueLen:', state.episodeQueue.length);
   if (state.episodeQueue.length === 0 || nextIdx >= state.episodeQueue.length) return;
 
   const nextEp = state.episodeQueue[nextIdx];
-  console.log('[NEXT-EP] Playing:', nextEp.name, 'url:', nextEp.url?.substring(0, 60));
   state.currentEpisodeIdx = nextIdx;
-  playStream(nextEp.url, nextEp.name, 'series');
+  playStream(nextEp.url, nextEp.name, 'series', 0);
 }
 
 function cancelNextEpisode() {
@@ -988,9 +1172,16 @@ function cancelNextEpisode() {
 }
 
 function stopPlayback() {
+  // Save progress before stopping
+  const video = $('#video-player');
+  if (state.currentStreamUrl && video.duration && isFinite(video.duration) && video.currentTime > 5) {
+    saveItemProgress(state.currentStreamUrl, video.currentTime, video.duration);
+  }
+
   // Kill timers
   if (state.stallTimer) { clearInterval(state.stallTimer); state.stallTimer = null; }
   if (state.nextEpTimer) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; }
+  if (state.progressTimer) { clearInterval(state.progressTimer); state.progressTimer = null; }
 
   // Kill all player event listeners
   if (state.playerAbort) {
@@ -1004,12 +1195,12 @@ function stopPlayback() {
   // Clear episode queue
   state.episodeQueue = [];
   state.currentEpisodeIdx = -1;
+  state.currentStreamUrl = null;
 
   // Hide next-ep overlay
   const nextEpOverlay = $('#next-ep-overlay');
   if (nextEpOverlay) nextEpOverlay.hidden = true;
 
-  const video = $('#video-player');
   video.pause();
   video.removeAttribute('src');
 
