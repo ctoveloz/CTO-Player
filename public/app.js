@@ -1,9 +1,11 @@
-// ===================== STATE =====================
-
 // ===================== SETTINGS =====================
 
 const defaultSettings = {
   skipCreditsSeconds: 0,
+  skipIntroSeconds: 0,
+  autoPlayNext: true,
+  defaultVolume: 100,
+  gridSize: 'medium',
 };
 
 function loadSettings() {
@@ -66,7 +68,6 @@ function saveItemProgress(url, currentTime, duration) {
   if (!url || !duration || duration < 10) return;
   const data = getProgressData();
   const percent = (currentTime / duration) * 100;
-  // Mark as completed if watched > 90%
   if (percent > 90) {
     data[url] = { currentTime: 0, duration, percent: 100, completed: true, updatedAt: Date.now() };
   } else {
@@ -79,9 +80,11 @@ function formatTime(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  return `${m}:${String(s).padStart(2,'0')}`;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+// ===================== STATE =====================
 
 const state = {
   playlist: null,
@@ -101,13 +104,13 @@ const state = {
   nextEpTimer: null,
   nextEpTriggered: false,
   settings: loadSettings(),
-  // Infinite scroll
   allFilteredItems: [],
   itemsToShow: 200,
   isLoadingMore: false,
   isRefreshing: false,
   progressTimer: null,
   currentStreamUrl: null,
+  currentSeriesItem: null,
 };
 
 // ===================== DOM REFS =====================
@@ -139,11 +142,10 @@ async function restoreSession() {
     if (res.ok) {
       state.playlist = await res.json();
       showDashboard();
-      // Auto-refresh playlist in background
       refreshPlaylist(true);
     }
   } catch (e) {
-    // No saved session, stay on login
+    // No saved session
   }
 }
 
@@ -157,12 +159,10 @@ function showView(name) {
 // ===================== LOGIN =====================
 
 function setupLogin() {
-  // Tab switching
   $$('.login-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       $$('.login-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
       const tab = btn.dataset.tab;
       $('#m3u-form').hidden = tab !== 'm3u';
       $('#xtream-form').hidden = tab !== 'xtream';
@@ -170,7 +170,6 @@ function setupLogin() {
     });
   });
 
-  // M3U form
   $('#m3u-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const url = $('#m3u-url').value.trim();
@@ -178,7 +177,6 @@ function setupLogin() {
     await loadPlaylist('/api/load-m3u', { url }, e.target);
   });
 
-  // Xtream form
   $('#xtream-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const server = $('#xtream-server').value.trim();
@@ -188,25 +186,19 @@ function setupLogin() {
     await loadPlaylist('/api/load-xtream', { server, username, password }, e.target);
   });
 
-  // Back from dashboard — clear saved session
   $('#btn-back-login').addEventListener('click', logout);
 
   async function logout() {
-    // Limpar state
     state.playlist = null;
     state.allFilteredItems = [];
     state.itemsToShow = 200;
-
-    // Deletar sessão no servidor (remove cookie e dados)
     await fetch('/api/session', { method: 'DELETE' });
-
-    // Voltar para tela de login
     showView('login');
   }
 }
 
 async function loadPlaylist(endpoint, body, form) {
-  const btn = form.querySelector('.btn-primary');
+  const btn = form.querySelector('.btn');
   const btnText = form.querySelector('.btn-text');
   const btnLoading = form.querySelector('.btn-loading');
   const progressEl = form.querySelector('.progress-info');
@@ -229,7 +221,6 @@ async function loadPlaylist(endpoint, body, form) {
       body: JSON.stringify(body),
     });
 
-    // Read NDJSON stream
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -240,21 +231,19 @@ async function loadPlaylist(endpoint, body, form) {
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete line
+      buffer = lines.pop();
 
       for (const line of lines) {
         if (!line.trim()) continue;
         try {
           const data = JSON.parse(line);
           lastData = data;
-
           if (data.type === 'progress') {
             progressText.textContent = data.message;
             if (data.percent != null) progressFill.style.width = data.percent + '%';
           } else if (data.type === 'error') {
             throw new Error(data.error);
           } else if (data.type === 'done') {
-            // Success — load the playlist
             progressText.textContent = 'Carregando interface...';
             progressFill.style.width = '100%';
           }
@@ -264,15 +253,10 @@ async function loadPlaylist(endpoint, body, form) {
       }
     }
 
-    // Check if we got an error in the last data
-    if (lastData && lastData.type === 'error') {
-      throw new Error(lastData.error);
-    }
+    if (lastData && lastData.type === 'error') throw new Error(lastData.error);
 
-    // Load full playlist
     const playlistRes = await fetch('/api/playlist');
     state.playlist = await playlistRes.json();
-
     showDashboard();
   } catch (err) {
     errorEl.textContent = err.message;
@@ -288,12 +272,19 @@ async function loadPlaylist(endpoint, body, form) {
 // ===================== DASHBOARD =====================
 
 function setupDashboard() {
-  // Tab switching
-  $$('.topbar-tabs .tab').forEach(btn => {
+  // Tab switching (desktop + mobile)
+  const allTabs = [...$$('.tab'), ...$$('.tab-mobile')];
+  allTabs.forEach(btn => {
     btn.addEventListener('click', () => {
-      $$('.topbar-tabs .tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.tab = btn.dataset.type;
+      $$('.tab').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
+      $$('.tab-mobile').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
+      // Activate matching tabs
+      const type = btn.dataset.type;
+      allTabs.filter(t => t.dataset.type === type).forEach(t => {
+        t.classList.add('btn-primary', 'active');
+        t.classList.remove('btn-outline-secondary');
+      });
+      state.tab = type;
       state.category = 'all';
       state.sort = 'newest';
       $('#sort-select').value = 'newest';
@@ -302,7 +293,6 @@ function setupDashboard() {
     });
   });
 
-  // Search
   let searchTimeout;
   $('#search-input').addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
@@ -312,23 +302,16 @@ function setupDashboard() {
     }, 200);
   });
 
-  // Sort
   $('#sort-select').addEventListener('change', (e) => {
     state.sort = e.target.value;
     renderContent();
   });
 
-  // Logout button
   $('#btn-logout').addEventListener('click', async () => {
-    // Limpar state
     state.playlist = null;
     state.allFilteredItems = [];
     state.itemsToShow = 200;
-
-    // Deletar sessão no servidor (remove cookie e dados)
     await fetch('/api/session', { method: 'DELETE' });
-
-    // Voltar para tela de login
     showView('login');
   });
 
@@ -336,15 +319,11 @@ function setupDashboard() {
   const contentArea = $('#content-area');
   contentArea.addEventListener('scroll', () => {
     if (state.isLoadingMore) return;
-
     const { scrollTop, scrollHeight, clientHeight } = contentArea;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-
-    // Carregar mais quando estiver a 500px do fim
-    if (distanceFromBottom < 500 && state.itemsToShow < state.allFilteredItems.length) {
+    if (scrollHeight - scrollTop - clientHeight < 500 && state.itemsToShow < state.allFilteredItems.length) {
       state.isLoadingMore = true;
-      state.itemsToShow += 100; // Carregar 100 itens por vez
-      setTimeout(() => renderContent(true), 100); // Pequeno delay para suavizar
+      state.itemsToShow += 100;
+      setTimeout(() => renderContent(true), 100);
     }
   });
 }
@@ -357,14 +336,19 @@ function showDashboard() {
   $('#search-input').value = '';
   $('#sort-select').value = 'newest';
 
-  // Reset tabs
-  $$('.topbar-tabs .tab').forEach(b => b.classList.remove('active'));
-  $('.topbar-tabs .tab[data-type="live"]').classList.add('active');
+  $$('.tab').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
+  $$('.tab-mobile').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
+  const liveTab = $('.tab[data-type="live"]');
+  const liveMobile = $('.tab-mobile[data-type="live"]');
+  if (liveTab) { liveTab.classList.add('btn-primary', 'active'); liveTab.classList.remove('btn-outline-secondary'); }
+  if (liveMobile) { liveMobile.classList.add('btn-primary', 'active'); liveMobile.classList.remove('btn-outline-secondary'); }
 
   showView('dashboard');
   renderSidebar();
   renderContent();
 }
+
+// ===================== REFRESH =====================
 
 async function refreshPlaylist(silent) {
   const btn = $('#btn-refresh');
@@ -375,7 +359,6 @@ async function refreshPlaylist(silent) {
 
   if (state.isRefreshing) return;
   state.isRefreshing = true;
-  btn.classList.add('refreshing');
   btn.disabled = true;
 
   if (!silent) {
@@ -407,12 +390,11 @@ async function refreshPlaylist(silent) {
             if (data.percent != null) progressFill.style.width = data.percent + '%';
             if (!silent) progressEl.hidden = false;
           } else if (data.type === 'error') {
-            console.warn('[REFRESH] Error:', data.error);
             statusEl.textContent = data.error;
           } else if (data.type === 'done') {
             success = true;
           }
-        } catch { /* ignore parse errors */ }
+        } catch { /* ignore */ }
       }
     }
 
@@ -427,60 +409,73 @@ async function refreshPlaylist(silent) {
       progressFill.style.width = '100%';
     }
   } catch (err) {
-    console.warn('[REFRESH] Failed:', err.message);
     statusEl.textContent = 'Falha ao atualizar';
   } finally {
     state.isRefreshing = false;
-    btn.classList.remove('refreshing');
     btn.disabled = false;
     btnText.textContent = 'Atualizar';
     if (silent) progressEl.hidden = true;
   }
 }
 
+// ===================== SIDEBAR =====================
+
 function renderSidebar() {
-  const sidebar = $('#sidebar');
   const section = state.playlist[state.tab];
   if (!section) return;
 
   const cats = section.categories || [];
   const items = section.items || [];
-  const totalCount = items.length;
-
-  // Count favorites for current tab
   const favs = getFavorites();
   const favCount = items.filter(i => favs[getFavKey(i)]).length;
 
-  let html = `<button class="cat-item ${state.category === 'all' ? 'active' : ''}" data-cat="all">
-    <span>Todas</span><span class="cat-count">${totalCount}</span>
+  let html = `<button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${state.category === 'all' ? 'active' : ''}" data-cat="all">
+    <span>Todas</span><span class="badge bg-secondary rounded-pill">${items.length}</span>
   </button>`;
 
-  // Favoritos category at top (only if there are favorites)
   if (favCount > 0) {
-    html += `<button class="cat-item ${state.category === '__favs__' ? 'active' : ''}" data-cat="__favs__">
-      <span>\u2B50 Favoritos</span><span class="cat-count">${favCount}</span>
+    html += `<button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${state.category === '__favs__' ? 'active' : ''}" data-cat="__favs__">
+      <span>\u2B50 Favoritos</span><span class="badge bg-secondary rounded-pill">${favCount}</span>
     </button>`;
   }
 
   for (const cat of cats) {
-    const isActive = state.category === cat.name ? 'active' : '';
-    html += `<button class="cat-item ${isActive}" data-cat="${escapeAttr(cat.name)}">
-      <span title="${escapeHtml(cat.name)}">${escapeHtml(truncate(cat.name, 22))}</span>
-      <span class="cat-count">${cat.count}</span>
+    html += `<button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${state.category === cat.name ? 'active' : ''}" data-cat="${escapeAttr(cat.name)}">
+      <span class="text-truncate" title="${escapeAttr(cat.name)}">${escapeHtml(truncate(cat.name, 22))}</span><span class="badge bg-secondary rounded-pill">${cat.count}</span>
     </button>`;
   }
 
-  sidebar.innerHTML = html;
-
-  // Bind category clicks
-  sidebar.querySelectorAll('.cat-item').forEach(btn => {
+  // Desktop sidebar
+  $('#sidebar').innerHTML = html;
+  $('#sidebar').querySelectorAll('.list-group-item').forEach(btn => {
     btn.addEventListener('click', () => {
-      sidebar.querySelectorAll('.cat-item').forEach(b => b.classList.remove('active'));
+      $('#sidebar').querySelectorAll('.list-group-item').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.category = btn.dataset.cat;
       renderContent();
     });
   });
+
+  // Mobile sidebar
+  $('#sidebar-mobile').innerHTML = html;
+  $('#sidebar-mobile').querySelectorAll('.list-group-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.category = btn.dataset.cat;
+      renderContent();
+      renderSidebar();
+      bootstrap.Offcanvas.getInstance($('#sidebar-offcanvas'))?.hide();
+    });
+  });
+}
+
+// ===================== CONTENT GRID =====================
+
+function getGridClasses() {
+  switch (state.settings.gridSize) {
+    case 'small': return 'row row-cols-3 row-cols-sm-4 row-cols-md-5 row-cols-lg-7 row-cols-xl-8 g-2';
+    case 'large': return 'row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-2';
+    default: return 'row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 row-cols-xl-6 g-2';
+  }
 }
 
 function renderContent(append = false) {
@@ -489,16 +484,13 @@ function renderContent(append = false) {
   const section = state.playlist[state.tab];
   if (!section) return;
 
-  // Se não for append, processar filtros e ordenação
   if (!append) {
     let items = [...(section.items || [])];
 
-    // Migrate: assign _idx if missing (old sessions before _idx existed)
     if (items.length > 0 && items[0]._idx === undefined) {
       section.items.forEach((item, i) => { item._idx = i; });
     }
 
-    // Filter by category
     if (state.category === '__favs__') {
       const favs = getFavorites();
       items = items.filter(i => favs[getFavKey(i)]);
@@ -506,34 +498,22 @@ function renderContent(append = false) {
       items = items.filter(i => i.group === state.category);
     }
 
-    // Filter by search
     if (state.search) {
       items = items.filter(i => i.name.toLowerCase().includes(state.search));
     }
 
-    // Sort
     switch (state.sort) {
-      case 'newest':
-        items.sort((a, b) => (b._idx || 0) - (a._idx || 0));
-        break;
-      case 'oldest':
-        items.sort((a, b) => (a._idx || 0) - (b._idx || 0));
-        break;
-      case 'az':
-        items.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'za':
-        items.sort((a, b) => b.name.localeCompare(a.name));
-        break;
+      case 'newest': items.sort((a, b) => (b._idx || 0) - (a._idx || 0)); break;
+      case 'oldest': items.sort((a, b) => (a._idx || 0) - (b._idx || 0)); break;
+      case 'az': items.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'za': items.sort((a, b) => b.name.localeCompare(a.name)); break;
     }
 
-    // Guardar items filtrados e resetar contador
     state.allFilteredItems = items;
     state.itemsToShow = 200;
   }
 
-  // Set grid class for live TV
-  grid.className = state.tab === 'live' ? 'grid live-grid' : 'grid';
+  grid.className = getGridClasses();
 
   if (state.allFilteredItems.length === 0) {
     grid.innerHTML = '';
@@ -543,37 +523,24 @@ function renderContent(append = false) {
 
   empty.hidden = true;
 
-  // Calcular quantos itens renderizar
   const limit = Math.min(state.allFilteredItems.length, state.itemsToShow);
-  const startIdx = append ? grid.querySelectorAll('.grid-item').length : 0;
+  const startIdx = append ? grid.querySelectorAll('.grid-col').length : 0;
 
-  // Se não for append, limpar grid
-  if (!append) {
-    grid.innerHTML = '';
-  }
+  if (!append) grid.innerHTML = '';
 
-  // Remover indicador "carregando" se existir
   const loadingIndicator = grid.querySelector('.loading-more');
   if (loadingIndicator) loadingIndicator.remove();
 
-  // Renderizar novos itens
   const fragment = document.createDocumentFragment();
   for (let i = startIdx; i < limit; i++) {
-    const item = state.allFilteredItems[i];
-    const el = createGridItem(item);
-    fragment.appendChild(el);
+    fragment.appendChild(createGridItem(state.allFilteredItems[i]));
   }
   grid.appendChild(fragment);
 
-  // Adicionar indicador de "mais itens" se houver mais para carregar
   if (state.allFilteredItems.length > limit) {
     const more = document.createElement('div');
-    more.className = 'loading-more';
-    more.style.cssText = 'grid-column: 1/-1; text-align:center; padding:20px; color:var(--text-muted); font-size:13px;';
-    more.innerHTML = `
-      <div class="spinner" style="width:24px; height:24px; margin:0 auto 8px;"></div>
-      <div>Carregando mais itens... (${limit} de ${state.allFilteredItems.length})</div>
-    `;
+    more.className = 'loading-more col-12 text-center py-3 text-secondary small';
+    more.innerHTML = `<div class="spinner-border spinner-border-sm text-primary mb-1"></div><div>Carregando... (${limit} de ${state.allFilteredItems.length})</div>`;
     grid.appendChild(more);
   }
 
@@ -581,57 +548,126 @@ function renderContent(append = false) {
 }
 
 function createGridItem(item) {
-  const div = document.createElement('div');
-  div.className = 'grid-item';
+  const col = document.createElement('div');
+  col.className = 'grid-col col';
 
   const fav = isFavorite(item);
-  const poster = item.logo
-    ? `<img src="${escapeAttr(item.logo)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<svg class=placeholder-icon width=40 height=40 viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;><path d=&quot;M8 5v14l11-7z&quot;/></svg><button class=btn-fav ${fav ? 'is-fav' : ''} data-fav>${fav ? '\u2605' : '\u2606'}</button>'">`
-    : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+  const isLive = state.tab === 'live';
+  const posterRatio = isLive ? 'ratio-16x9' : 'ratio-2x3';
 
-  // Progress bar for non-series items
+  const posterImg = item.logo
+    ? `<img src="${escapeAttr(item.logo)}" alt="" loading="lazy" class="w-100 h-100 object-fit-cover" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-100 h-100 d-flex align-items-center justify-content-center text-secondary',innerHTML:'<i class=\\'bi bi-play-circle fs-1\\'></i>'}))">`
+    : `<div class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary"><i class="bi bi-play-circle fs-1"></i></div>`;
+
   let progressHtml = '';
   if (!item.isSeries && item.url) {
     const prog = getItemProgress(item.url);
     if (prog && prog.percent > 0) {
-      const cls = prog.completed ? 'completed' : '';
-      progressHtml = `<div class="grid-item-progress"><div class="grid-item-progress-fill ${cls}" style="width:${prog.percent}%"></div></div>`;
+      const cls = prog.completed ? 'bg-success' : 'bg-primary';
+      progressHtml = `<div class="progress" style="height:3px;border-radius:0"><div class="progress-bar ${cls}" style="width:${prog.percent}%"></div></div>`;
     }
   }
 
-  div.innerHTML = `
-    <div class="grid-item-poster">
-      ${poster}
-      <button class="btn-fav ${fav ? 'is-fav' : ''}" data-fav>${fav ? '\u2605' : '\u2606'}</button>
-    </div>
-    ${progressHtml}
-    <div class="grid-item-info">
-      <div class="grid-item-name" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</div>
-      <div class="grid-item-group">${escapeHtml(item.group)}</div>
+  col.innerHTML = `
+    <div class="card h-100 grid-card">
+      <div class="card-poster ${posterRatio} position-relative">
+        ${posterImg}
+        <button class="btn-fav ${fav ? 'is-fav' : ''}" data-fav>${fav ? '\u2605' : '\u2606'}</button>
+      </div>
+      ${progressHtml}
+      <div class="card-body p-2">
+        <div class="small fw-medium text-truncate" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</div>
+        <div class="small text-secondary text-truncate">${escapeHtml(item.group)}</div>
+      </div>
     </div>
   `;
 
-  // Favorite button click
-  const favBtn = div.querySelector('.btn-fav');
+  const favBtn = col.querySelector('.btn-fav');
   favBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const nowFav = toggleFavorite(item);
     favBtn.classList.toggle('is-fav', nowFav);
     favBtn.textContent = nowFav ? '\u2605' : '\u2606';
-    // Update sidebar favorite count
     renderSidebar();
   });
 
-  // Main click
-  div.addEventListener('click', () => {
+  col.querySelector('.card').addEventListener('click', () => {
     if (item.isSeries) {
       openSeries(item);
     } else if (item.url) {
-      maybeResumeOrPlay(item.url, item.name, 'dashboard');
+      if (item.streamId) {
+        openMovieDetail(item);
+      } else {
+        maybeResumeOrPlay(item.url, item.name, 'dashboard');
+      }
     }
   });
 
-  return div;
+  return col;
+}
+
+// ===================== MOVIE DETAIL (OFFCANVAS) =====================
+
+async function openMovieDetail(item) {
+  const offcanvasEl = $('#vod-detail-offcanvas');
+  const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+
+  $('#vod-detail-title').textContent = item.name;
+  $('#vod-detail-cover').src = item.logo || '';
+  $('#vod-detail-cover').hidden = !item.logo;
+
+  // Badges
+  let badges = '';
+  if (item.rating) badges += `<span class="badge bg-warning text-dark">\u2605 ${escapeHtml(item.rating)}</span>`;
+  if (item.year) badges += `<span class="badge bg-secondary">${escapeHtml(item.year)}</span>`;
+  $('#vod-detail-badges').innerHTML = badges;
+
+  // Clear pending fields
+  $('#vod-detail-genre').hidden = true;
+  $('#vod-detail-plot').hidden = true;
+  $('#vod-detail-cast').hidden = true;
+  $('#vod-detail-director').hidden = true;
+  $('#vod-detail-trailer').hidden = true;
+
+  // Fav button
+  const favBtn = $('#vod-detail-fav');
+  const fav = isFavorite(item);
+  favBtn.innerHTML = fav ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>';
+  favBtn.className = fav ? 'btn btn-warning' : 'btn btn-outline-warning';
+  favBtn.onclick = () => {
+    const nowFav = toggleFavorite(item);
+    favBtn.innerHTML = nowFav ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>';
+    favBtn.className = nowFav ? 'btn btn-warning' : 'btn btn-outline-warning';
+    renderSidebar();
+  };
+
+  // Play button
+  $('#vod-detail-play').onclick = () => {
+    offcanvas.hide();
+    maybeResumeOrPlay(item.url, item.name, 'dashboard');
+  };
+
+  offcanvas.show();
+
+  // Fetch full details
+  try {
+    const res = await fetch(`/api/vod/${item.streamId}`);
+    if (res.ok) {
+      const info = await res.json();
+      if (info.plot) { $('#vod-detail-plot').textContent = info.plot; $('#vod-detail-plot').hidden = false; }
+      if (info.genre) { $('#vod-detail-genre').textContent = info.genre; $('#vod-detail-genre').hidden = false; }
+      if (info.cast) { $('#vod-detail-cast').innerHTML = `<strong>Elenco:</strong> ${escapeHtml(info.cast)}`; $('#vod-detail-cast').hidden = false; }
+      if (info.director) { $('#vod-detail-director').innerHTML = `<strong>Dire\u00e7\u00e3o:</strong> ${escapeHtml(info.director)}`; $('#vod-detail-director').hidden = false; }
+      if (info.duration) {
+        $('#vod-detail-badges').innerHTML += `<span class="badge bg-info">${escapeHtml(info.duration)}</span>`;
+      }
+      if (info.cover) { $('#vod-detail-cover').src = info.cover; $('#vod-detail-cover').hidden = false; }
+      if (info.youtubeTrailer) {
+        $('#vod-detail-trailer').href = `https://www.youtube.com/watch?v=${encodeURIComponent(info.youtubeTrailer)}`;
+        $('#vod-detail-trailer').hidden = false;
+      }
+    }
+  } catch (e) { /* basic info already shown */ }
 }
 
 // ===================== RESUME OR PLAY =====================
@@ -639,28 +675,20 @@ function createGridItem(item) {
 function maybeResumeOrPlay(url, name, fromView) {
   const prog = getItemProgress(url);
   if (prog && !prog.completed && prog.currentTime > 10 && prog.percent < 90) {
-    // Show resume dialog
-    const dialog = $('#resume-dialog');
+    const modalEl = $('#resume-modal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     $('#resume-item-name').textContent = name;
     $('#resume-time-info').textContent = `Parou em ${formatTime(prog.currentTime)} de ${formatTime(prog.duration)} (${prog.percent}%)`;
-    dialog.hidden = false;
 
-    const onResume = () => {
-      dialog.hidden = true;
-      cleanup();
-      playStream(url, name, fromView, prog.currentTime);
-    };
-    const onRestart = () => {
-      dialog.hidden = true;
-      cleanup();
-      playStream(url, name, fromView, 0);
-    };
+    const onResume = () => { modal.hide(); cleanup(); playStream(url, name, fromView, prog.currentTime); };
+    const onRestart = () => { modal.hide(); cleanup(); playStream(url, name, fromView, 0); };
     const cleanup = () => {
       $('#btn-resume-yes').removeEventListener('click', onResume);
       $('#btn-resume-no').removeEventListener('click', onRestart);
     };
     $('#btn-resume-yes').addEventListener('click', onResume);
     $('#btn-resume-no').addEventListener('click', onRestart);
+    modal.show();
   } else {
     playStream(url, name, fromView, 0);
   }
@@ -669,31 +697,75 @@ function maybeResumeOrPlay(url, name, fromView) {
 // ===================== SERIES DETAIL =====================
 
 async function openSeries(item) {
+  state.currentSeriesItem = item;
   $('#series-title').textContent = item.name;
-  $('#series-seasons').innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando temporadas...</p></div>';
+  $('#series-detail-title').textContent = item.name;
+  $('#series-cover').src = item.logo || '';
+  $('#series-cover').hidden = !item.logo;
+  $('#series-badges').innerHTML = '';
+  $('#series-genre').hidden = true;
+  $('#series-plot').hidden = true;
+  $('#series-cast').hidden = true;
+  $('#series-director').hidden = true;
+  $('#series-trailer').hidden = true;
+
+  // Fav button
+  const favBtn = $('#btn-fav-series');
+  const fav = isFavorite(item);
+  favBtn.innerHTML = fav ? '<i class="bi bi-star-fill me-1"></i>Favoritado' : '<i class="bi bi-star me-1"></i>Favoritar';
+  favBtn.className = fav ? 'btn btn-sm btn-warning w-100' : 'btn btn-sm btn-outline-warning w-100';
+  favBtn.onclick = () => {
+    const nowFav = toggleFavorite(item);
+    favBtn.innerHTML = nowFav ? '<i class="bi bi-star-fill me-1"></i>Favoritado' : '<i class="bi bi-star me-1"></i>Favoritar';
+    favBtn.className = nowFav ? 'btn btn-sm btn-warning w-100' : 'btn btn-sm btn-outline-warning w-100';
+    renderSidebar();
+  };
+
+  // Show rating/year from grid data
+  let badges = '';
+  if (item.rating) badges += `<span class="badge bg-warning text-dark">\u2605 ${escapeHtml(item.rating)}</span>`;
+  if (item.year) badges += `<span class="badge bg-secondary">${escapeHtml(item.year)}</span>`;
+  $('#series-badges').innerHTML = badges;
+
+  $('#series-seasons').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="text-secondary mt-2">Carregando temporadas...</p></div>';
   showView('series');
   $('#btn-back-dashboard').onclick = () => showView('dashboard');
 
-  // M3U series: seasons are already embedded in the item
   if (item.seasons) {
     renderSeasons({ name: item.name, seasons: item.seasons });
     return;
   }
 
-  // Xtream series: fetch from API
   if (item.seriesId) {
     try {
       const res = await fetch(`/api/series/${item.seriesId}`);
       if (!res.ok) throw new Error('Falha ao carregar');
       const data = await res.json();
+
+      // Fill info panel from API
+      if (data.cover) { $('#series-cover').src = data.cover; $('#series-cover').hidden = false; }
+      if (data.plot) { $('#series-plot').textContent = data.plot; $('#series-plot').hidden = false; }
+      if (data.genre) { $('#series-genre').textContent = data.genre; $('#series-genre').hidden = false; }
+      if (data.cast) { $('#series-cast').innerHTML = `<strong>Elenco:</strong> ${escapeHtml(data.cast)}`; $('#series-cast').hidden = false; }
+      if (data.director) { $('#series-director').innerHTML = `<strong>Dire\u00e7\u00e3o:</strong> ${escapeHtml(data.director)}`; $('#series-director').hidden = false; }
+      if (data.youtubeTrailer) {
+        $('#series-trailer').href = `https://www.youtube.com/watch?v=${encodeURIComponent(data.youtubeTrailer)}`;
+        $('#series-trailer').hidden = false;
+      }
+      let extraBadges = '';
+      if (data.rating) extraBadges += `<span class="badge bg-warning text-dark">\u2605 ${escapeHtml(data.rating)}</span>`;
+      if (data.releaseDate) extraBadges += `<span class="badge bg-secondary">${escapeHtml(data.releaseDate)}</span>`;
+      if (data.episodeRunTime) extraBadges += `<span class="badge bg-info">${escapeHtml(data.episodeRunTime)} min</span>`;
+      if (extraBadges) $('#series-badges').innerHTML = extraBadges;
+
       renderSeasons(data);
     } catch (err) {
-      $('#series-seasons').innerHTML = `<div class="empty"><p>Erro: ${escapeHtml(err.message)}</p></div>`;
+      $('#series-seasons').innerHTML = `<div class="alert alert-danger">Erro: ${escapeHtml(err.message)}</div>`;
     }
     return;
   }
 
-  $('#series-seasons').innerHTML = '<div class="empty"><p>Nenhum episódio encontrado</p></div>';
+  $('#series-seasons').innerHTML = '<div class="alert alert-secondary">Nenhum epis\u00f3dio encontrado</div>';
 }
 
 function renderSeasons(data) {
@@ -702,11 +774,10 @@ function renderSeasons(data) {
   const keys = Object.keys(seasons).sort((a, b) => Number(a) - Number(b));
 
   if (keys.length === 0) {
-    container.innerHTML = '<div class="empty"><p>Nenhum episódio encontrado</p></div>';
+    container.innerHTML = '<div class="alert alert-secondary">Nenhum epis\u00f3dio encontrado</div>';
     return;
   }
 
-  // Build flat episode queue across all seasons (ordered)
   const queue = [];
   for (const num of keys) {
     for (const ep of seasons[num]) {
@@ -716,37 +787,49 @@ function renderSeasons(data) {
 
   const progressData = getProgressData();
 
-  let html = '';
+  let html = '<div class="accordion" id="seasons-accordion">';
   let queueIdx = 0;
-  for (const num of keys) {
+  for (let ki = 0; ki < keys.length; ki++) {
+    const num = keys[ki];
     const episodes = seasons[num];
-    html += `<div class="season-block">
-      <div class="season-title">Temporada ${num}</div>
-      <div class="episode-list">`;
+    const collapseId = `season-${num}`;
+    const isFirst = ki === 0;
+
+    html += `
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button ${isFirst ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+          Temporada ${num} <span class="badge bg-secondary ms-2">${episodes.length} ep.</span>
+        </button>
+      </h2>
+      <div id="${collapseId}" class="accordion-collapse collapse ${isFirst ? 'show' : ''}" data-bs-parent="#seasons-accordion">
+        <div class="list-group list-group-flush">`;
 
     for (const ep of episodes) {
       const prog = progressData[ep.url];
       const pct = prog ? prog.percent : 0;
       const isCompleted = prog && prog.completed;
       const progressBar = pct > 0
-        ? `<div class="episode-progress-bar"><div class="episode-progress-fill ${isCompleted ? 'completed' : ''}" style="width:${pct}%"></div></div>`
+        ? `<div class="progress mt-1" style="height:3px"><div class="progress-bar ${isCompleted ? 'bg-success' : 'bg-primary'}" style="width:${pct}%"></div></div>`
         : '';
-      const watchedBadge = isCompleted ? '<span class="episode-watched-badge">&#10003; Visto</span>' : '';
+      const watchedBadge = isCompleted ? '<span class="badge bg-success ms-auto">Visto</span>' : '';
 
-      html += `<div class="episode-item-wrap">
-        <div class="episode-item" data-url="${escapeAttr(ep.url)}" data-name="${escapeAttr(ep.name)}" data-queue-idx="${queueIdx}">
-          <span class="episode-num">E${String(ep.episode).padStart(2, '0')}</span>
-          <span class="episode-name">${escapeHtml(ep.name)}</span>
-          ${ep.duration ? `<span class="episode-duration">${escapeHtml(ep.duration)}</span>` : ''}
-          ${watchedBadge}
-        </div>
-        ${progressBar}
-      </div>`;
+      html += `
+        <div class="list-group-item list-group-item-action p-0">
+          <div class="episode-item d-flex align-items-center gap-2 px-3 py-2" data-url="${escapeAttr(ep.url)}" data-name="${escapeAttr(ep.name)}" data-queue-idx="${queueIdx}">
+            <span class="text-primary fw-bold small">E${String(ep.episode).padStart(2, '0')}</span>
+            <span class="small flex-grow-1 text-truncate">${escapeHtml(ep.name)}</span>
+            ${ep.duration ? `<span class="text-secondary small">${escapeHtml(ep.duration)}</span>` : ''}
+            ${watchedBadge}
+          </div>
+          ${progressBar}
+        </div>`;
       queueIdx++;
     }
 
-    html += '</div></div>';
+    html += '</div></div></div>';
   }
+  html += '</div>';
 
   container.innerHTML = html;
 
@@ -762,7 +845,6 @@ function renderSeasons(data) {
 // ===================== PLAYER =====================
 
 function setupPlayer() {
-  // Init Plyr (wrapped in try-catch to not block other setup)
   try {
     state.plyrInstance = new Plyr('#video-player', {
       controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
@@ -773,7 +855,7 @@ function setupPlayer() {
       blankVideo: '',
     });
   } catch (e) {
-    console.warn('[PLAYER] Plyr init failed, using native controls:', e.message);
+    console.warn('[PLAYER] Plyr init failed:', e.message);
   }
 
   $('#btn-back-player').addEventListener('click', stopPlayback);
@@ -791,7 +873,7 @@ function detectStreamType(url) {
   const u = url.toLowerCase();
   if (u.includes('.m3u8') || u.includes('type=m3u8')) return 'hls';
   if (u.includes('.ts') || u.includes('/live/')) return 'ts';
-  return 'direct'; // mp4, mkv, etc.
+  return 'direct';
 }
 
 function playStream(url, name, fromView, resumeAt) {
@@ -800,18 +882,15 @@ function playStream(url, name, fromView, resumeAt) {
   const video = $('#video-player');
   const errorEl = $('#player-error');
 
-  // Abort all previous event listeners
   if (state.playerAbort) state.playerAbort.abort();
   state.playerAbort = new AbortController();
   const { signal } = state.playerAbort;
 
-  // Clear timers
   if (state.stallTimer) { clearInterval(state.stallTimer); state.stallTimer = null; }
   if (state.nextEpTimer) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; }
   if (state.progressTimer) { clearInterval(state.progressTimer); state.progressTimer = null; }
   state.recoveryAttempts = 0;
 
-  // Hide next-ep overlay if visible
   const nextEpOverlay = $('#next-ep-overlay');
   if (nextEpOverlay) nextEpOverlay.hidden = true;
 
@@ -819,205 +898,132 @@ function playStream(url, name, fromView, resumeAt) {
   errorEl.hidden = true;
   $('#player-title').textContent = name;
 
-  // Show/hide episode nav buttons
   updateEpNavButtons();
 
-  // Cleanup previous instances
   if (state.hlsInstance) { state.hlsInstance.destroy(); state.hlsInstance = null; }
   if (state.mpegtsInstance) { state.mpegtsInstance.destroy(); state.mpegtsInstance = null; }
 
-  // Reset video completely
   video.pause();
   video.removeAttribute('src');
   video.load();
+
+  // Apply default volume
+  video.volume = (state.settings.defaultVolume || 100) / 100;
 
   showView('player');
 
   const proxyUrl = location.origin + '/api/proxy?url=' + encodeURIComponent(url);
   const streamType = detectStreamType(url);
 
-  console.log(`[PLAYER] Starting ${streamType} stream:`, url.substring(0, 80));
-
   if (streamType === 'hls' && Hls.isSupported()) {
-    console.log('[PLAYER] HLS.js supported, creating instance');
     const hls = new Hls({
-      maxBufferLength: 60,
-      maxMaxBufferLength: 120,
-      maxBufferSize: 60 * 1024 * 1024,
-      maxBufferHole: 0.5,
-      lowLatencyMode: false,
-      fragLoadingTimeOut: 20000,
-      fragLoadingMaxRetry: 6,
-      fragLoadingRetryDelay: 1000,
-      manifestLoadingTimeOut: 15000,
-      manifestLoadingMaxRetry: 4,
-      levelLoadingTimeOut: 15000,
-      levelLoadingMaxRetry: 4,
-      startFragPrefetch: true,
+      maxBufferLength: 60, maxMaxBufferLength: 120, maxBufferSize: 60 * 1024 * 1024,
+      maxBufferHole: 0.5, lowLatencyMode: false, fragLoadingTimeOut: 20000,
+      fragLoadingMaxRetry: 6, fragLoadingRetryDelay: 1000, manifestLoadingTimeOut: 15000,
+      manifestLoadingMaxRetry: 4, levelLoadingTimeOut: 15000, levelLoadingMaxRetry: 4, startFragPrefetch: true,
     });
     state.hlsInstance = hls;
-
-    console.log('[PLAYER] Loading source:', proxyUrl.substring(0, 80));
     hls.loadSource(proxyUrl);
     hls.attachMedia(video);
 
-    hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-      console.log('[PLAYER] Manifest parsed, levels:', data.levels?.length);
-      video.play().catch((e) => console.warn('[PLAYER] play() rejected:', e.message));
-    });
-
-    hls.on(Hls.Events.MANIFEST_LOADING, () => console.log('[PLAYER] Loading manifest...'));
-    hls.on(Hls.Events.MANIFEST_LOADED, () => console.log('[PLAYER] Manifest loaded'));
-    hls.on(Hls.Events.LEVEL_LOADED, () => console.log('[PLAYER] Level loaded'));
-    hls.on(Hls.Events.FRAG_LOADING, () => console.log('[PLAYER] Loading fragment...'));
-    hls.on(Hls.Events.FRAG_LOADED, () => {
-      console.log('[PLAYER] Fragment loaded');
-      state.recoveryAttempts = 0; // reset on successful fragment
-    });
+    hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
+    hls.on(Hls.Events.FRAG_LOADED, () => { state.recoveryAttempts = 0; });
 
     hls.on(Hls.Events.ERROR, (_, data) => {
-      console.warn(`[PLAYER] HLS error: type=${data.type} details=${data.details} fatal=${data.fatal}`, data.response ? `status=${data.response.code}` : '', data.reason || '');
       if (!data.fatal) return;
-
       if (state.recoveryAttempts >= 10) { errorEl.hidden = false; return; }
       state.recoveryAttempts++;
-      console.log(`[PLAYER] Recovery attempt ${state.recoveryAttempts}/10`);
-
       if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
         hls.recoverMediaError();
       } else if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-        const delay = Math.min(2000 * state.recoveryAttempts, 10000);
-        setTimeout(() => {
-          if (state.hlsInstance) hls.startLoad();
-        }, delay);
+        setTimeout(() => { if (state.hlsInstance) hls.startLoad(); }, Math.min(2000 * state.recoveryAttempts, 10000));
       } else {
-        // Try full reload for other errors
         hls.destroy();
         const newHls = new Hls(hls.config);
         state.hlsInstance = newHls;
         newHls.loadSource(proxyUrl);
         newHls.attachMedia(video);
-        newHls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(() => {});
-        });
+        newHls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
       }
     });
 
-    // Stall recovery for HLS
-    setupStallDetection(video, signal, () => {
-      if (state.hlsInstance) state.hlsInstance.recoverMediaError();
-    });
+    setupStallDetection(video, signal, () => { if (state.hlsInstance) state.hlsInstance.recoverMediaError(); });
 
   } else if (streamType === 'ts' && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
-    // Use mpegts.js for live TS streams
-    const player = mpegts.createPlayer({
-      type: 'mpegts',
-      isLive: true,
-      url: proxyUrl,
-    }, {
-      enableWorker: true,
-      liveBufferLatencyChasing: true,
-      liveBufferLatencyMaxLatency: 30,
-      liveBufferLatencyMinRemain: 3,
-      lazyLoadMaxDuration: 120,
-      autoCleanupSourceBuffer: true,
-      autoCleanupMaxBackwardDuration: 30,
-      autoCleanupMinBackwardDuration: 15,
+    const player = mpegts.createPlayer({ type: 'mpegts', isLive: true, url: proxyUrl }, {
+      enableWorker: true, liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 30,
+      liveBufferLatencyMinRemain: 3, lazyLoadMaxDuration: 120, autoCleanupSourceBuffer: true,
+      autoCleanupMaxBackwardDuration: 30, autoCleanupMinBackwardDuration: 15,
     });
     state.mpegtsInstance = player;
-
     player.attachMediaElement(video);
     player.load();
     player.play().catch(() => {});
 
-    player.on(mpegts.Events.ERROR, (type, detail) => {
-      console.warn(`[PLAYER] mpegts error: ${type}/${detail}`);
+    player.on(mpegts.Events.ERROR, () => {
       if (state.recoveryAttempts >= 5) { errorEl.hidden = false; return; }
       state.recoveryAttempts++;
-      // Auto-reconnect for live streams
-      setTimeout(() => {
-        try {
-          player.unload();
-          player.load();
-          player.play().catch(() => {});
-        } catch (e) { errorEl.hidden = false; }
-      }, 2000);
+      setTimeout(() => { try { player.unload(); player.load(); player.play().catch(() => {}); } catch { errorEl.hidden = false; } }, 2000);
     });
 
-    // Stall recovery for TS
     setupStallDetection(video, signal, () => {
-      if (state.mpegtsInstance) {
-        try {
-          state.mpegtsInstance.unload();
-          state.mpegtsInstance.load();
-          state.mpegtsInstance.play().catch(() => {});
-        } catch (e) { /* ignore */ }
-      }
+      if (state.mpegtsInstance) { try { state.mpegtsInstance.unload(); state.mpegtsInstance.load(); state.mpegtsInstance.play().catch(() => {}); } catch {} }
     });
 
   } else if (streamType === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari native HLS
     video.src = proxyUrl;
     video.addEventListener('error', () => { errorEl.hidden = false; }, { signal });
     video.play().catch(() => {});
-
   } else {
-    // Direct MP4/MKV playback with stall recovery
     video.src = proxyUrl;
-    video.addEventListener('error', () => {
-      console.error('[PLAYER] Video error:', video.error?.code, video.error?.message);
-      errorEl.hidden = false;
-    }, { signal });
+    video.addEventListener('error', () => { errorEl.hidden = false; }, { signal });
     video.play().catch(() => {});
-
-    // Auto-reconnect on stall for direct streams
     setupStallDetection(video, signal, () => {
-      const currentTime = video.currentTime;
-      console.log('[PLAYER] Reconnecting direct stream at', currentTime.toFixed(1));
+      const ct = video.currentTime;
       video.src = proxyUrl;
-      video.currentTime = currentTime;
+      video.currentTime = ct;
       video.play().catch(() => {});
     });
   }
 
-  // Resume playback at saved position
+  // Resume at position
   if (resumeAt && resumeAt > 0) {
-    const seekOnce = () => {
-      if (video.readyState >= 1) {
-        video.currentTime = resumeAt;
-        video.removeEventListener('loadedmetadata', seekOnce);
-      }
-    };
-    video.addEventListener('loadedmetadata', seekOnce, { signal });
+    video.addEventListener('loadedmetadata', function seekOnce() {
+      video.currentTime = resumeAt;
+      video.removeEventListener('loadedmetadata', seekOnce);
+    }, { signal });
   }
 
-  // Save progress periodically (every 10 seconds)
+  // Skip intro
+  if (state.settings.skipIntroSeconds > 0 && state.episodeQueue.length > 0) {
+    video.addEventListener('loadedmetadata', function skipIntro() {
+      if (!resumeAt || resumeAt === 0) {
+        video.currentTime = state.settings.skipIntroSeconds;
+      }
+      video.removeEventListener('loadedmetadata', skipIntro);
+    }, { signal });
+  }
+
+  // Progress saving
   state.progressTimer = setInterval(() => {
     if (!video.paused && !video.ended && video.duration && isFinite(video.duration) && video.currentTime > 5) {
       saveItemProgress(url, video.currentTime, video.duration);
     }
   }, 10000);
 
-  // Save progress on pause/end
   video.addEventListener('pause', () => {
-    if (video.duration && isFinite(video.duration) && video.currentTime > 5) {
-      saveItemProgress(url, video.currentTime, video.duration);
-    }
+    if (video.duration && isFinite(video.duration) && video.currentTime > 5) saveItemProgress(url, video.currentTime, video.duration);
   }, { signal });
   video.addEventListener('ended', () => {
-    if (video.duration && isFinite(video.duration)) {
-      saveItemProgress(url, video.duration, video.duration);
-    }
+    if (video.duration && isFinite(video.duration)) saveItemProgress(url, video.duration, video.duration);
   }, { signal });
 
   state.nextEpTriggered = false;
-
   let overlayShown = false;
 
   if (state.settings.skipCreditsSeconds > 0 && state.episodeQueue.length > 0) {
     const skipAt = state.settings.skipCreditsSeconds;
-    const warnAt = skipAt + 10; // show overlay 10s before skip
-
+    const warnAt = skipAt + 10;
     let skipArmed = false;
     video.addEventListener('loadedmetadata', () => { skipArmed = true; }, { signal, once: true });
 
@@ -1027,16 +1033,12 @@ function playStream(url, name, fromView, resumeAt) {
       if (video.currentTime < 30) return;
       const remaining = video.duration - video.currentTime;
 
-      // Show overlay 10s before skip
       if (!overlayShown && remaining <= warnAt && remaining > skipAt) {
         overlayShown = true;
-        console.log('[SKIP] Showing warning. currentEpisodeIdx:', state.currentEpisodeIdx, 'queueLen:', state.episodeQueue.length, 'next:', state.episodeQueue[state.currentEpisodeIdx + 1]?.name);
         showSkipWarning(remaining - skipAt);
       }
 
-      // Skip now
       if (remaining <= skipAt && remaining > 0) {
-        console.log('[SKIP] Triggering skip. currentEpisodeIdx:', state.currentEpisodeIdx, 'queueLen:', state.episodeQueue.length, 'next:', state.episodeQueue[state.currentEpisodeIdx + 1]?.name, 'nextUrl:', state.episodeQueue[state.currentEpisodeIdx + 1]?.url?.substring(0, 60));
         state.nextEpTriggered = true;
         hideSkipWarning();
         video.pause();
@@ -1046,77 +1048,54 @@ function playStream(url, name, fromView, resumeAt) {
   }
 
   video.addEventListener('ended', () => {
-    if (!state.nextEpTriggered) showNextEpisodeOverlay();
+    if (!state.nextEpTriggered && state.settings.autoPlayNext) showNextEpisodeOverlay();
   }, { signal });
 }
 
 function setupStallDetection(video, signal, recoveryFn) {
   let lastTime = 0;
   let stallCount = 0;
-
   const timer = setInterval(() => {
     if (signal.aborted) { clearInterval(timer); return; }
     if (!video.paused && !video.ended && video.readyState > 0) {
       if (Math.abs(video.currentTime - lastTime) < 0.1) {
         stallCount++;
-        console.warn(`[PLAYER] Stall (${stallCount}/3): time=${video.currentTime.toFixed(1)}`);
-        if (stallCount >= 3) {
-          stallCount = 0;
-          console.log('[PLAYER] Auto-recovering from stall');
-          recoveryFn();
-        }
-      } else {
-        stallCount = 0;
-      }
+        if (stallCount >= 3) { stallCount = 0; recoveryFn(); }
+      } else { stallCount = 0; }
       lastTime = video.currentTime;
     }
   }, 4000);
-
   state.stallTimer = timer;
 }
 
 function showNextEpisodeOverlay() {
   const nextIdx = state.currentEpisodeIdx + 1;
   if (state.episodeQueue.length === 0 || nextIdx >= state.episodeQueue.length) return;
-
   const nextEp = state.episodeQueue[nextIdx];
   const overlay = $('#next-ep-overlay');
   if (!overlay) return;
 
   $('#next-ep-name').textContent = nextEp.name;
   overlay.hidden = false;
-
   let countdown = 10;
   $('#next-ep-countdown').textContent = countdown;
-
-  // Clear any previous timer
   if (state.nextEpTimer) clearInterval(state.nextEpTimer);
-
   state.nextEpTimer = setInterval(() => {
     countdown--;
     $('#next-ep-countdown').textContent = countdown;
-    if (countdown <= 0) {
-      clearInterval(state.nextEpTimer);
-      state.nextEpTimer = null;
-      playNextEpisode();
-    }
+    if (countdown <= 0) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; playNextEpisode(); }
   }, 1000);
 }
 
 function showSkipWarning(seconds) {
   const nextIdx = state.currentEpisodeIdx + 1;
   if (state.episodeQueue.length === 0 || nextIdx >= state.episodeQueue.length) return;
-
-  const nextEp = state.episodeQueue[nextIdx];
   const overlay = $('#next-ep-overlay');
   if (!overlay) return;
-
-  $('#next-ep-name').textContent = nextEp.name;
+  $('#next-ep-name').textContent = state.episodeQueue[nextIdx].name;
   overlay.hidden = false;
-
   let countdown = Math.round(seconds);
   $('#next-ep-countdown').textContent = countdown;
-
   if (state.nextEpTimer) clearInterval(state.nextEpTimer);
   state.nextEpTimer = setInterval(() => {
     countdown--;
@@ -1134,35 +1113,27 @@ function hideSkipWarning() {
 function updateEpNavButtons() {
   const nav = $('#ep-nav-buttons');
   if (!nav) return;
-
   const hasQueue = state.episodeQueue.length > 0;
   nav.hidden = !hasQueue;
   if (!hasQueue) return;
-
   $('#btn-prev-ep').disabled = state.currentEpisodeIdx <= 0;
   $('#btn-next-ep').disabled = state.currentEpisodeIdx >= state.episodeQueue.length - 1;
 }
 
 function playPrevEpisode() {
   if (state.episodeQueue.length === 0 || state.currentEpisodeIdx <= 0) return;
-
   if (state.nextEpTimer) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; }
-
   const prevIdx = state.currentEpisodeIdx - 1;
-  const prevEp = state.episodeQueue[prevIdx];
   state.currentEpisodeIdx = prevIdx;
-  playStream(prevEp.url, prevEp.name, 'series', 0);
+  playStream(state.episodeQueue[prevIdx].url, state.episodeQueue[prevIdx].name, 'series', 0);
 }
 
 function playNextEpisode() {
   if (state.nextEpTimer) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; }
-
   const nextIdx = state.currentEpisodeIdx + 1;
   if (state.episodeQueue.length === 0 || nextIdx >= state.episodeQueue.length) return;
-
-  const nextEp = state.episodeQueue[nextIdx];
   state.currentEpisodeIdx = nextIdx;
-  playStream(nextEp.url, nextEp.name, 'series', 0);
+  playStream(state.episodeQueue[nextIdx].url, state.episodeQueue[nextIdx].name, 'series', 0);
 }
 
 function cancelNextEpisode() {
@@ -1172,38 +1143,28 @@ function cancelNextEpisode() {
 }
 
 function stopPlayback() {
-  // Save progress before stopping
   const video = $('#video-player');
   if (state.currentStreamUrl && video.duration && isFinite(video.duration) && video.currentTime > 5) {
     saveItemProgress(state.currentStreamUrl, video.currentTime, video.duration);
   }
 
-  // Kill timers
   if (state.stallTimer) { clearInterval(state.stallTimer); state.stallTimer = null; }
   if (state.nextEpTimer) { clearInterval(state.nextEpTimer); state.nextEpTimer = null; }
   if (state.progressTimer) { clearInterval(state.progressTimer); state.progressTimer = null; }
 
-  // Kill all player event listeners
-  if (state.playerAbort) {
-    state.playerAbort.abort();
-    state.playerAbort = null;
-  }
-
+  if (state.playerAbort) { state.playerAbort.abort(); state.playerAbort = null; }
   if (state.hlsInstance) { state.hlsInstance.destroy(); state.hlsInstance = null; }
   if (state.mpegtsInstance) { state.mpegtsInstance.destroy(); state.mpegtsInstance = null; }
 
-  // Clear episode queue
   state.episodeQueue = [];
   state.currentEpisodeIdx = -1;
   state.currentStreamUrl = null;
 
-  // Hide next-ep overlay
   const nextEpOverlay = $('#next-ep-overlay');
   if (nextEpOverlay) nextEpOverlay.hidden = true;
 
   video.pause();
   video.removeAttribute('src');
-
   showView(state.previousView);
 }
 
@@ -1214,25 +1175,60 @@ function setupSettings() {
   $('#btn-back-settings').addEventListener('click', () => showView('dashboard'));
   $('#btn-refresh').addEventListener('click', () => refreshPlaylist(false));
 
+  // Volume slider live label
+  $('#setting-volume').addEventListener('input', (e) => {
+    $('#setting-volume-label').textContent = e.target.value;
+  });
+
   $('#settings-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const skipCredits = parseInt($('#setting-skip-credits').value, 10) || 0;
-
     saveSettings({
-      skipCreditsSeconds: Math.max(0, Math.min(300, skipCredits)),
+      skipCreditsSeconds: Math.max(0, Math.min(300, parseInt($('#setting-skip-credits').value, 10) || 0)),
+      skipIntroSeconds: Math.max(0, Math.min(120, parseInt($('#setting-skip-intro').value, 10) || 0)),
+      autoPlayNext: $('#setting-autoplay-next').checked,
+      defaultVolume: parseInt($('#setting-volume').value, 10) || 100,
+      gridSize: $('#setting-grid-size').value || 'medium',
     });
 
-    // Show saved feedback
-    const btn = $('#settings-form .btn-primary');
-    const orig = btn.textContent;
-    btn.textContent = 'Salvo!';
+    // Apply grid size immediately
+    renderContent();
+
+    const btn = e.target.querySelector('.btn-primary');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Salvo!';
     btn.disabled = true;
-    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1500);
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1500);
+  });
+
+  // Clear progress
+  $('#btn-clear-progress').addEventListener('click', () => {
+    if (confirm('Remover todo o hist\u00f3rico de assistidos?')) {
+      localStorage.removeItem('ctoplayer_progress');
+      const btn = $('#btn-clear-progress');
+      btn.innerHTML = '<i class="bi bi-check me-1"></i>Limpo!';
+      setTimeout(() => { btn.innerHTML = '<i class="bi bi-trash me-1"></i>Limpar'; }, 1500);
+    }
+  });
+
+  // Clear favorites
+  $('#btn-clear-favorites').addEventListener('click', () => {
+    if (confirm('Remover todos os favoritos?')) {
+      localStorage.removeItem('ctoplayer_favorites');
+      renderSidebar();
+      const btn = $('#btn-clear-favorites');
+      btn.innerHTML = '<i class="bi bi-check me-1"></i>Limpo!';
+      setTimeout(() => { btn.innerHTML = '<i class="bi bi-trash me-1"></i>Limpar'; }, 1500);
+    }
   });
 }
 
 function openSettings() {
   $('#setting-skip-credits').value = state.settings.skipCreditsSeconds;
+  $('#setting-skip-intro').value = state.settings.skipIntroSeconds;
+  $('#setting-autoplay-next').checked = state.settings.autoPlayNext;
+  $('#setting-volume').value = state.settings.defaultVolume;
+  $('#setting-volume-label').textContent = state.settings.defaultVolume;
+  $('#setting-grid-size').value = state.settings.gridSize;
   showView('settings');
 }
 

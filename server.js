@@ -411,6 +411,7 @@ function buildXtreamPlaylist(server, user, pass, liveCats, liveStreams, vodCats,
     group: vodCatMap[s.category_id] || 'Sem Categoria',
     logo: s.stream_icon || '',
     url: `${server}/movie/${user}/${pass}/${s.stream_id}.${s.container_extension || 'mp4'}`,
+    streamId: s.stream_id,
     tvgId: '',
     rating: s.rating || '',
     year: s.year || '',
@@ -828,13 +829,58 @@ app.get('/api/series/:id', async (req, res) => {
       }
     }
 
+    const seriesInfo = data.info || {};
     res.json({
-      name: data.info?.name || 'Série',
-      cover: data.info?.cover || '',
+      name: seriesInfo.name || 'Série',
+      cover: seriesInfo.cover || '',
+      plot: seriesInfo.plot || '',
+      cast: seriesInfo.cast || '',
+      director: seriesInfo.director || '',
+      genre: seriesInfo.genre || '',
+      releaseDate: seriesInfo.releaseDate || seriesInfo.releasedate || '',
+      rating: seriesInfo.rating || '',
+      rating5: seriesInfo.rating_5based || '',
+      youtubeTrailer: seriesInfo.youtube_trailer || '',
+      episodeRunTime: seriesInfo.episode_run_time || '',
       seasons,
     });
   } catch (err) {
     res.status(500).json({ error: 'Falha ao carregar série: ' + err.message });
+  }
+});
+
+app.get('/api/vod/:id', async (req, res) => {
+  const ip = getClientIP(req);
+  if (!checkRateLimit(`api:${ip}`, 60)) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+  if (!/^\d+$/.test(req.params.id)) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+  const { entry } = getSession(req);
+  if (!entry || !entry.xtreamConfig) {
+    return res.status(400).json({ error: 'Xtream Codes não configurado' });
+  }
+  try {
+    const { server, username, password } = entry.xtreamConfig;
+    const base = `${server}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+    const info = await axios.get(`${base}&action=get_vod_info&vod_id=${encodeURIComponent(req.params.id)}`, { timeout: 15000 });
+    const vodInfo = info.data?.info || {};
+    res.json({
+      name: vodInfo.name || vodInfo.movie_name || '',
+      cover: vodInfo.movie_image || vodInfo.stream_icon || '',
+      plot: vodInfo.plot || vodInfo.description || '',
+      cast: vodInfo.cast || '',
+      director: vodInfo.director || '',
+      genre: vodInfo.genre || '',
+      releaseDate: vodInfo.releasedate || vodInfo.release_date || '',
+      rating: vodInfo.rating || '',
+      duration: vodInfo.duration || '',
+      year: vodInfo.year || '',
+      youtubeTrailer: vodInfo.youtube_trailer || '',
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Falha ao carregar informações: ' + err.message });
   }
 });
 
