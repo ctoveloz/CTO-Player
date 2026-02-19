@@ -26,6 +26,13 @@ html, body {
   max-width: 400px;
 }
 
+/* ===== VIEWS LAYOUT ===== */
+#dashboard-view,
+#series-view,
+#settings-view {
+  flex-direction: column;
+}
+
 /* ===== DASHBOARD SIDEBAR ===== */
 .sidebar-panel {
   width: var(--sidebar-w);
