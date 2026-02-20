@@ -276,13 +276,13 @@ function setupDashboard() {
   const allTabs = [...$$('.tab'), ...$$('.tab-mobile')];
   allTabs.forEach(btn => {
     btn.addEventListener('click', () => {
-      $$('.tab').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
-      $$('.tab-mobile').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
+      $$('.tab').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
+      $$('.tab-mobile').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
       // Activate matching tabs
       const type = btn.dataset.type;
       allTabs.filter(t => t.dataset.type === type).forEach(t => {
-        t.classList.add('btn-primary', 'active');
-        t.classList.remove('btn-outline-secondary');
+        t.classList.add('btn-light', 'active');
+        t.classList.remove('btn-outline-light');
       });
       state.tab = type;
       state.category = 'all';
@@ -336,12 +336,12 @@ function showDashboard() {
   $('#search-input').value = '';
   $('#sort-select').value = 'newest';
 
-  $$('.tab').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
-  $$('.tab-mobile').forEach(b => { b.classList.remove('btn-primary', 'active'); b.classList.add('btn-outline-secondary'); });
+  $$('.tab').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
+  $$('.tab-mobile').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
   const liveTab = $('.tab[data-type="live"]');
   const liveMobile = $('.tab-mobile[data-type="live"]');
-  if (liveTab) { liveTab.classList.add('btn-primary', 'active'); liveTab.classList.remove('btn-outline-secondary'); }
-  if (liveMobile) { liveMobile.classList.add('btn-primary', 'active'); liveMobile.classList.remove('btn-outline-secondary'); }
+  if (liveTab) { liveTab.classList.add('btn-light', 'active'); liveTab.classList.remove('btn-outline-light'); }
+  if (liveMobile) { liveMobile.classList.add('btn-light', 'active'); liveMobile.classList.remove('btn-outline-light'); }
 
   showView('dashboard');
   renderSidebar();

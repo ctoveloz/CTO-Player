@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-bs-theme="dark">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CtoPlayer</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -19,7 +19,7 @@
         </div>
         <h1 class="fs-4 fw-bold mb-0">CtoPlayer</h1>
       </div>
-      <p class="text-secondary small mb-4">Reprodutor IPTV</p>
+      <p class="text-muted small mb-4">Reprodutor IPTV</p>
 
       <ul class="nav nav-pills nav-fill mb-3" role="tablist">
         <li class="nav-item"><button class="nav-link active login-tab" data-tab="m3u">M3U Playlist</button></li>
@@ -34,7 +34,7 @@
         </button>
         <div class="progress-info" hidden>
           <div class="progress" style="height:4px"><div class="progress-bar progress-fill" style="width:0%"></div></div>
-          <span class="progress-text text-secondary small"></span>
+          <span class="progress-text text-muted small"></span>
         </div>
       </form>
 
@@ -48,34 +48,34 @@
         </button>
         <div class="progress-info" hidden>
           <div class="progress" style="height:4px"><div class="progress-bar progress-fill" style="width:0%"></div></div>
-          <span class="progress-text text-secondary small"></span>
+          <span class="progress-text text-muted small"></span>
         </div>
       </form>
 
       <div id="login-error" class="alert alert-danger mt-3 mb-0 py-2 small" hidden></div>
 
-      <p class="text-center text-secondary small mt-3 mb-0">Projeto Open Source: <a href="https://github.com/ctoveloz/CTO-Player" target="_blank" rel="noopener" class="text-secondary">github.com/ctoveloz/CTO-Player</a></p>
+      <p class="text-center text-muted small mt-3 mb-0">Projeto Open Source: <a href="https://github.com/ctoveloz/CTO-Player" target="_blank" rel="noopener" class="text-muted">github.com/ctoveloz/CTO-Player</a></p>
     </div>
   </div>
 
   <!-- DASHBOARD VIEW -->
   <div id="dashboard-view" class="view">
-    <nav class="navbar navbar-dark bg-dark border-bottom border-secondary px-3 flex-shrink-0">
+    <nav class="navbar navbar-dark bg-primary px-3 flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
-        <button id="btn-back-login" class="btn btn-sm btn-outline-secondary" title="Voltar"><i class="bi bi-arrow-left"></i></button>
+        <button id="btn-back-login" class="btn btn-sm btn-outline-light" title="Voltar"><i class="bi bi-arrow-left"></i></button>
         <span class="navbar-brand mb-0 fw-bold">CtoPlayer</span>
-        <button class="btn btn-sm btn-outline-secondary d-md-none" data-bs-toggle="offcanvas" data-bs-target="#sidebar-offcanvas" title="Categorias"><i class="bi bi-list"></i></button>
+        <button class="btn btn-sm btn-outline-light d-md-none" data-bs-toggle="offcanvas" data-bs-target="#sidebar-offcanvas" title="Categorias"><i class="bi bi-list"></i></button>
       </div>
       <div class="d-none d-sm-flex gap-1">
-        <button class="btn btn-sm btn-primary tab active" data-type="live">TV ao Vivo</button>
-        <button class="btn btn-sm btn-outline-secondary tab" data-type="movies">Filmes</button>
-        <button class="btn btn-sm btn-outline-secondary tab" data-type="series">S&#233;ries</button>
+        <button class="btn btn-sm btn-light tab active" data-type="live">TV ao Vivo</button>
+        <button class="btn btn-sm btn-outline-light tab" data-type="movies">Filmes</button>
+        <button class="btn btn-sm btn-outline-light tab" data-type="series">S&#233;ries</button>
       </div>
       <!-- Mobile tabs -->
       <div class="d-flex d-sm-none gap-1">
-        <button class="btn btn-sm btn-primary tab-mobile active" data-type="live"><i class="bi bi-tv"></i></button>
-        <button class="btn btn-sm btn-outline-secondary tab-mobile" data-type="movies"><i class="bi bi-film"></i></button>
-        <button class="btn btn-sm btn-outline-secondary tab-mobile" data-type="series"><i class="bi bi-collection-play"></i></button>
+        <button class="btn btn-sm btn-light tab-mobile active" data-type="live"><i class="bi bi-tv"></i></button>
+        <button class="btn btn-sm btn-outline-light tab-mobile" data-type="movies"><i class="bi bi-film"></i></button>
+        <button class="btn btn-sm btn-outline-light tab-mobile" data-type="series"><i class="bi bi-collection-play"></i></button>
       </div>
       <div class="d-flex align-items-center gap-2">
         <select id="sort-select" class="form-select form-select-sm d-none d-lg-block" style="width:auto">
@@ -85,8 +85,8 @@
           <option value="za">Z - A</option>
         </select>
         <input type="search" id="search-input" class="form-control form-control-sm" placeholder="Buscar..." autocomplete="off" style="width:180px">
-        <button id="btn-settings" class="btn btn-sm btn-outline-secondary" title="Configura&#231;&#245;es"><i class="bi bi-gear"></i></button>
-        <button id="btn-logout" class="btn btn-sm btn-outline-danger" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
+        <button id="btn-settings" class="btn btn-sm btn-outline-light" title="Configura&#231;&#245;es"><i class="bi bi-gear"></i></button>
+        <button id="btn-logout" class="btn btn-sm btn-outline-light" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
       </div>
     </nav>
 
@@ -98,7 +98,7 @@
       <div class="offcanvas offcanvas-start" id="sidebar-offcanvas" tabindex="-1">
         <div class="offcanvas-header">
           <h5 class="offcanvas-title">Categorias</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body p-0">
           <div id="sidebar-mobile" class="list-group list-group-flush"></div>
@@ -107,10 +107,10 @@
 
       <main id="content-area" class="flex-grow-1 overflow-auto p-3">
         <div id="content-grid"></div>
-        <div id="empty-state" class="text-center text-secondary py-5" hidden>Nenhum item encontrado</div>
+        <div id="empty-state" class="text-center text-muted py-5" hidden>Nenhum item encontrado</div>
         <div id="loading-state" class="text-center py-5" hidden>
           <div class="spinner-border text-primary" role="status"></div>
-          <p class="text-secondary mt-2">Carregando conte&#250;do...</p>
+          <p class="text-muted mt-2">Carregando conte&#250;do...</p>
         </div>
       </main>
     </div>
@@ -118,9 +118,9 @@
 
   <!-- SERIES DETAIL VIEW -->
   <div id="series-view" class="view">
-    <nav class="navbar navbar-dark bg-dark border-bottom border-secondary px-3 flex-shrink-0">
+    <nav class="navbar navbar-dark bg-primary px-3 flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
-        <button id="btn-back-dashboard" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></button>
+        <button id="btn-back-dashboard" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-left"></i></button>
         <span id="series-title" class="navbar-brand mb-0 fw-bold text-truncate"></span>
       </div>
     </nav>
@@ -133,10 +133,10 @@
             <div class="card-body">
               <h5 id="series-detail-title" class="card-title"></h5>
               <div class="d-flex flex-wrap gap-1 mb-2" id="series-badges"></div>
-              <p id="series-genre" class="text-secondary small mb-2" hidden></p>
+              <p id="series-genre" class="text-muted small mb-2" hidden></p>
               <p id="series-plot" class="small mb-2" hidden></p>
-              <p id="series-cast" class="text-secondary small mb-1" hidden></p>
-              <p id="series-director" class="text-secondary small mb-2" hidden></p>
+              <p id="series-cast" class="text-muted small mb-1" hidden></p>
+              <p id="series-director" class="text-muted small mb-2" hidden></p>
               <a id="series-trailer" class="btn btn-sm btn-outline-danger mb-2" target="_blank" rel="noopener" hidden><i class="bi bi-youtube"></i> Trailer</a>
               <button id="btn-fav-series" class="btn btn-sm btn-outline-warning w-100"><i class="bi bi-star"></i> Favoritar</button>
             </div>
@@ -152,9 +152,9 @@
 
   <!-- SETTINGS VIEW -->
   <div id="settings-view" class="view">
-    <nav class="navbar navbar-dark bg-dark border-bottom border-secondary px-3 flex-shrink-0">
+    <nav class="navbar navbar-dark bg-primary px-3 flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
-        <button id="btn-back-settings" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></button>
+        <button id="btn-back-settings" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-left"></i></button>
         <span class="navbar-brand mb-0 fw-bold">Configura&#231;&#245;es</span>
       </div>
     </nav>
@@ -166,22 +166,22 @@
             <div class="card-header fw-semibold"><i class="bi bi-play-circle me-2"></i>Reprodu&#231;&#227;o</div>
             <div class="card-body d-flex flex-column gap-3">
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Pular cr&#233;ditos finais (segundos)</label><p class="text-secondary small mb-0">Pula automaticamente para o pr&#243;ximo epis&#243;dio</p></div>
+                <div><label class="form-label mb-0 small fw-semibold">Pular cr&#233;ditos finais (segundos)</label><p class="text-muted small mb-0">Pula automaticamente para o pr&#243;ximo epis&#243;dio</p></div>
                 <input type="number" id="setting-skip-credits" min="0" max="300" step="5" value="0" class="form-control form-control-sm" style="width:80px">
               </div>
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Pular intro (segundos)</label><p class="text-secondary small mb-0">Avan&#231;a automaticamente no in&#237;cio dos epis&#243;dios</p></div>
+                <div><label class="form-label mb-0 small fw-semibold">Pular intro (segundos)</label><p class="text-muted small mb-0">Avan&#231;a automaticamente no in&#237;cio dos epis&#243;dios</p></div>
                 <input type="number" id="setting-skip-intro" min="0" max="120" step="5" value="0" class="form-control form-control-sm" style="width:80px">
               </div>
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Auto-play pr&#243;ximo epis&#243;dio</label><p class="text-secondary small mb-0">Reproduz automaticamente ao terminar</p></div>
+                <div><label class="form-label mb-0 small fw-semibold">Auto-play pr&#243;ximo epis&#243;dio</label><p class="text-muted small mb-0">Reproduz automaticamente ao terminar</p></div>
                 <div class="form-check form-switch"><input type="checkbox" id="setting-autoplay-next" class="form-check-input" checked></div>
               </div>
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Volume padr&#227;o</label><p class="text-secondary small mb-0">Volume inicial do player</p></div>
+                <div><label class="form-label mb-0 small fw-semibold">Volume padr&#227;o</label><p class="text-muted small mb-0">Volume inicial do player</p></div>
                 <div class="d-flex align-items-center gap-2" style="width:160px">
                   <input type="range" id="setting-volume" min="0" max="100" value="100" class="form-range flex-grow-1">
-                  <span id="setting-volume-label" class="small text-secondary" style="min-width:30px">100</span>
+                  <span id="setting-volume-label" class="small text-muted" style="min-width:30px">100</span>
                 </div>
               </div>
             </div>
@@ -192,7 +192,7 @@
             <div class="card-header fw-semibold"><i class="bi bi-grid me-2"></i>Interface</div>
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Tamanho do grid</label><p class="text-secondary small mb-0">Tamanho dos cards na lista</p></div>
+                <div><label class="form-label mb-0 small fw-semibold">Tamanho do grid</label><p class="text-muted small mb-0">Tamanho dos cards na lista</p></div>
                 <select id="setting-grid-size" class="form-select form-select-sm" style="width:140px">
                   <option value="small">Pequeno</option>
                   <option value="medium" selected>M&#233;dio</option>
@@ -202,7 +202,7 @@
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary w-100 mb-3"><i class="bi bi-check-lg me-1"></i>Salvar Configura&#231;&#245;es</button>
+          <button type="submit" class="btn btn-success w-100 mb-3"><i class="bi bi-check-lg me-1"></i>Salvar Configura&#231;&#245;es</button>
         </form>
 
         <!-- Card 3: Playlist -->
@@ -210,12 +210,12 @@
           <div class="card-header fw-semibold"><i class="bi bi-music-note-list me-2"></i>Playlist</div>
           <div class="card-body">
             <div class="d-flex align-items-center justify-content-between gap-3">
-              <div><label class="form-label mb-0 small fw-semibold">Atualizar lista</label><p class="text-secondary small mb-0">Baixa novamente a playlist para atualizar o conte&#250;do</p></div>
-              <button id="btn-refresh" class="btn btn-sm btn-primary btn-refresh"><i class="bi bi-arrow-clockwise me-1"></i><span id="btn-refresh-text">Atualizar</span></button>
+              <div><label class="form-label mb-0 small fw-semibold">Atualizar lista</label><p class="text-muted small mb-0">Baixa novamente a playlist para atualizar o conte&#250;do</p></div>
+              <button id="btn-refresh" class="btn btn-sm btn-info btn-refresh"><i class="bi bi-arrow-clockwise me-1"></i><span id="btn-refresh-text">Atualizar</span></button>
             </div>
             <div id="refresh-progress" class="mt-2" hidden>
-              <div class="progress" style="height:4px"><div id="refresh-progress-fill" class="progress-bar" style="width:0%"></div></div>
-              <span id="refresh-status" class="text-secondary small"></span>
+              <div class="progress" style="height:4px"><div id="refresh-progress-fill" class="progress-bar bg-info" style="width:0%"></div></div>
+              <span id="refresh-status" class="text-muted small"></span>
             </div>
           </div>
         </div>
@@ -225,12 +225,12 @@
           <div class="card-header fw-semibold"><i class="bi bi-database me-2"></i>Dados</div>
           <div class="card-body d-flex flex-column gap-2">
             <div class="d-flex align-items-center justify-content-between gap-3">
-              <div><label class="form-label mb-0 small fw-semibold">Limpar hist&#243;rico</label><p class="text-secondary small mb-0">Remove todo o progresso de filmes e s&#233;ries assistidos</p></div>
-              <button id="btn-clear-progress" class="btn btn-sm btn-outline-warning"><i class="bi bi-trash me-1"></i>Limpar</button>
+              <div><label class="form-label mb-0 small fw-semibold">Limpar hist&#243;rico</label><p class="text-muted small mb-0">Remove todo o progresso de filmes e s&#233;ries assistidos</p></div>
+              <button id="btn-clear-progress" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Limpar</button>
             </div>
             <div class="d-flex align-items-center justify-content-between gap-3">
-              <div><label class="form-label mb-0 small fw-semibold">Limpar favoritos</label><p class="text-secondary small mb-0">Remove todos os itens favoritados</p></div>
-              <button id="btn-clear-favorites" class="btn btn-sm btn-outline-warning"><i class="bi bi-trash me-1"></i>Limpar</button>
+              <div><label class="form-label mb-0 small fw-semibold">Limpar favoritos</label><p class="text-muted small mb-0">Remove todos os itens favoritados</p></div>
+              <button id="btn-clear-favorites" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Limpar</button>
             </div>
           </div>
         </div>
@@ -250,12 +250,12 @@
     </div>
     <video id="video-player" controls autoplay></video>
     <div id="player-error" class="player-error" hidden>
-      <p class="text-secondary">Falha ao reproduzir o stream</p>
+      <p class="text-muted">Falha ao reproduzir o stream</p>
       <button id="btn-retry" class="btn btn-primary btn-sm">Tentar novamente</button>
     </div>
     <div id="next-ep-overlay" class="next-ep-overlay" hidden>
-      <div class="card bg-dark bg-opacity-75 border-secondary p-3" style="min-width:260px;backdrop-filter:blur(8px)">
-        <span class="text-secondary small text-uppercase">Pr&#243;ximo epis&#243;dio em <span id="next-ep-countdown" class="text-primary fw-bold">10</span>s</span>
+      <div class="card border-secondary p-3" style="min-width:260px;backdrop-filter:blur(8px)">
+        <span class="text-muted small text-uppercase">Pr&#243;ximo epis&#243;dio em <span id="next-ep-countdown" class="text-primary fw-bold">10</span>s</span>
         <span id="next-ep-name" class="fw-semibold text-truncate" style="max-width:300px"></span>
         <div class="d-flex gap-2 mt-2">
           <button id="btn-next-ep-play" class="btn btn-primary btn-sm" onclick="playNextEpisode()">Reproduzir agora</button>
@@ -269,18 +269,18 @@
   <div class="offcanvas offcanvas-end" id="vod-detail-offcanvas" tabindex="-1" style="max-width:400px;width:90%">
     <div class="offcanvas-header">
       <h5 class="offcanvas-title text-truncate" id="vod-detail-title"></h5>
-      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
     </div>
     <div class="offcanvas-body">
       <img id="vod-detail-cover" class="img-fluid rounded mb-3 w-100" alt="" style="max-height:350px;object-fit:cover">
       <div class="d-flex flex-wrap gap-1 mb-2" id="vod-detail-badges"></div>
-      <p id="vod-detail-genre" class="text-secondary small mb-2" hidden></p>
+      <p id="vod-detail-genre" class="text-muted small mb-2" hidden></p>
       <p id="vod-detail-plot" class="small mb-2" hidden></p>
-      <p id="vod-detail-cast" class="text-secondary small mb-1" hidden></p>
-      <p id="vod-detail-director" class="text-secondary small mb-2" hidden></p>
+      <p id="vod-detail-cast" class="text-muted small mb-1" hidden></p>
+      <p id="vod-detail-director" class="text-muted small mb-2" hidden></p>
       <a id="vod-detail-trailer" class="btn btn-sm btn-outline-danger mb-3 w-100" target="_blank" rel="noopener" hidden><i class="bi bi-youtube me-1"></i>Trailer</a>
       <div class="d-flex gap-2">
-        <button id="vod-detail-play" class="btn btn-primary flex-grow-1"><i class="bi bi-play-fill me-1"></i>Assistir</button>
+        <button id="vod-detail-play" class="btn btn-success flex-grow-1"><i class="bi bi-play-fill me-1"></i>Assistir</button>
         <button id="vod-detail-fav" class="btn btn-outline-warning"><i class="bi bi-star"></i></button>
       </div>
     </div>
@@ -292,10 +292,10 @@
       <div class="modal-content">
         <div class="modal-body text-center p-4">
           <p class="fw-bold mb-1">Continuar assistindo?</p>
-          <p id="resume-item-name" class="text-secondary small text-truncate mb-0"></p>
+          <p id="resume-item-name" class="text-muted small text-truncate mb-0"></p>
           <p id="resume-time-info" class="text-primary small mb-3"></p>
           <div class="d-flex flex-column gap-2">
-            <button id="btn-resume-yes" class="btn btn-primary btn-sm">Continuar de onde parei</button>
+            <button id="btn-resume-yes" class="btn btn-success btn-sm">Continuar de onde parei</button>
             <button id="btn-resume-no" class="btn btn-outline-secondary btn-sm">Come&#231;ar do in&#237;cio</button>
           </div>
         </div>
