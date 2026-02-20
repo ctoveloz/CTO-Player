@@ -384,6 +384,42 @@ function groupSeriesItems(items) {
   return [...Object.values(seriesMap), ...ungrouped];
 }
 
+// ===================== XTREAM API HELPER =====================
+
+async function fetchXtreamApi(url, label, timeout, retries = 2) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await axios.get(url, {
+        timeout,
+        maxContentLength: 100 * 1024 * 1024,
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      const data = res.data;
+      // Some Xtream servers return error objects or HTML instead of arrays
+      if (Array.isArray(data)) return data;
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        // Could be { "error": "..." } or empty object
+        console.warn(`[XTREAM] ${label}: resposta não é array (tentativa ${attempt}):`, JSON.stringify(data).substring(0, 200));
+        if (attempt < retries) continue;
+        return [];
+      }
+      // null, string, number, etc.
+      console.warn(`[XTREAM] ${label}: resposta inválida tipo ${typeof data} (tentativa ${attempt})`);
+      if (attempt < retries) continue;
+      return [];
+    } catch (err) {
+      console.warn(`[XTREAM] ${label}: falhou tentativa ${attempt}/${retries} - ${err.message}`);
+      if (attempt < retries) {
+        // Wait before retry (exponential backoff)
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+        continue;
+      }
+      return [];
+    }
+  }
+  return [];
+}
+
 // ===================== XTREAM CODES =====================
 
 function buildXtreamPlaylist(server, user, pass, liveCats, liveStreams, vodCats, vodStreams, seriesCats, seriesData) {
@@ -468,95 +504,170 @@ app.post('/api/load-m3u', (req, res) => {
 
   send({ type: 'progress', message: 'Conectando ao servidor...', percent: 5 });
 
-  const isHttps = parsedUrl.protocol === 'https:';
-  const transport = isHttps ? https : http;
-  const chunks = [];
-  let received = 0;
-  let totalSize = 0;
+  downloadM3U(parsedUrl, send, 1);
 
-  const dlReq = transport.request({
-    hostname: parsedUrl.hostname,
-    port: parsedUrl.port || (isHttps ? 443 : 80),
-    path: parsedUrl.pathname + parsedUrl.search,
-    method: 'GET',
-    headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'gzip, deflate, identity' },
-    agent: isHttps ? httpsAgent : httpAgent,
-    timeout: 15000,
-  }, (upstream) => {
-    // Handle redirects
-    if ([301, 302, 303, 307, 308].includes(upstream.statusCode)) {
-      upstream.resume();
-      const loc = upstream.headers.location;
-      if (loc) {
-        const rUrl = loc.startsWith('http') ? loc : `${parsedUrl.protocol}//${parsedUrl.host}${loc}`;
-        // Validate redirect target is not internal
-        if (!validateExternalUrl(rUrl)) {
-          send({ type: 'error', error: 'Redirecionamento para destino bloqueado' });
-          return res.end();
+  function downloadM3U(targetUrl, send, attempt) {
+    const maxAttempts = 2;
+    const isHttps = targetUrl.protocol === 'https:';
+    const transport = isHttps ? https : http;
+    const chunks = [];
+    let received = 0;
+    let totalSize = 0;
+    let finished = false;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(totalTimer);
+      dlReq.destroy();
+    };
+
+    // Total download timeout: 3 minutes
+    const totalTimer = setTimeout(() => {
+      if (finished) return;
+      console.warn(`[M3U] Download timeout total (tentativa ${attempt}/${maxAttempts})`);
+      finish();
+      if (attempt < maxAttempts) {
+        send({ type: 'progress', message: `Download lento, tentando novamente... (${attempt + 1}/${maxAttempts})`, percent: 5 });
+        downloadM3U(targetUrl, send, attempt + 1);
+      } else {
+        send({ type: 'error', error: 'Tempo limite do download excedido após múltiplas tentativas' });
+        res.end();
+      }
+    }, 180000);
+
+    const dlReq = transport.request({
+      hostname: targetUrl.hostname,
+      port: targetUrl.port || (isHttps ? 443 : 80),
+      path: targetUrl.pathname + targetUrl.search,
+      method: 'GET',
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'gzip, deflate, identity' },
+      agent: isHttps ? httpsAgent : httpAgent,
+      timeout: 30000,
+    }, (upstream) => {
+      // Handle redirects
+      if ([301, 302, 303, 307, 308].includes(upstream.statusCode)) {
+        upstream.resume();
+        const loc = upstream.headers.location;
+        if (loc) {
+          const rUrl = loc.startsWith('http') ? loc : `${targetUrl.protocol}//${targetUrl.host}${loc}`;
+          const redirectUrl = validateExternalUrl(rUrl);
+          if (!redirectUrl) {
+            finish();
+            send({ type: 'error', error: 'Redirecionamento para destino bloqueado' });
+            return res.end();
+          }
+          send({ type: 'progress', message: 'Redirecionando...', percent: 5 });
+          finish();
+          downloadM3U(redirectUrl, send, attempt);
+          return;
         }
-        send({ type: 'progress', message: 'Redirecionando...', percent: 5 });
-        axios.get(rUrl, { timeout: 120000, maxContentLength: 200 * 1024 * 1024, responseType: 'text' })
-          .then(r => finishM3U(r.data))
-          .catch(e => { send({ type: 'error', error: e.message }); res.end(); });
+        finish();
+        send({ type: 'error', error: 'Redirect sem destino' });
+        return res.end();
+      }
+
+      if (upstream.statusCode >= 400) {
+        upstream.resume();
+        finish();
+        if (attempt < maxAttempts) {
+          send({ type: 'progress', message: `Servidor retornou erro ${upstream.statusCode}, tentando novamente...`, percent: 5 });
+          setTimeout(() => downloadM3U(targetUrl, send, attempt + 1), 2000 * attempt);
+        } else {
+          send({ type: 'error', error: `Servidor retornou erro ${upstream.statusCode}` });
+          res.end();
+        }
         return;
       }
-      send({ type: 'error', error: 'Redirect sem destino' });
-      return res.end();
-    }
 
-    if (upstream.statusCode >= 400) {
-      upstream.resume();
-      send({ type: 'error', error: `Servidor retornou erro ${upstream.statusCode}` });
-      return res.end();
-    }
+      totalSize = parseInt(upstream.headers['content-length'] || '0', 10);
+      const encoding = upstream.headers['content-encoding'];
+      let stream = upstream;
+      if (encoding === 'gzip') stream = upstream.pipe(zlib.createGunzip());
+      else if (encoding === 'deflate') stream = upstream.pipe(zlib.createInflate());
 
-    totalSize = parseInt(upstream.headers['content-length'] || '0', 10);
-    const encoding = upstream.headers['content-encoding'];
-    let stream = upstream;
-    if (encoding === 'gzip') stream = upstream.pipe(zlib.createGunzip());
-    else if (encoding === 'deflate') stream = upstream.pipe(zlib.createInflate());
+      send({ type: 'progress', message: 'Baixando playlist...', percent: 10 });
 
-    send({ type: 'progress', message: 'Baixando playlist...', percent: 10 });
+      // Stall detection: if no data for 30s, abort
+      let stallTimer = setTimeout(() => handleStall(), 30000);
+      function handleStall() {
+        if (finished) return;
+        console.warn(`[M3U] Download stalled (tentativa ${attempt}/${maxAttempts}), recebido: ${(received / 1024 / 1024).toFixed(1)} MB`);
+        finish();
+        if (attempt < maxAttempts) {
+          send({ type: 'progress', message: `Download parou, tentando novamente... (${attempt + 1}/${maxAttempts})`, percent: 5 });
+          downloadM3U(targetUrl, send, attempt + 1);
+        } else {
+          send({ type: 'error', error: 'Download parou no meio após múltiplas tentativas' });
+          res.end();
+        }
+      }
 
-    // Track progress every 500ms
-    let lastProgressTime = Date.now();
-    stream.on('data', (chunk) => {
-      chunks.push(chunk);
-      received += chunk.length;
-      const now = Date.now();
-      if (now - lastProgressTime > 500) {
-        lastProgressTime = now;
-        const mb = (received / 1024 / 1024).toFixed(1);
-        let pct = 10;
-        if (totalSize > 0) pct = Math.min(70, 10 + Math.round((received / totalSize) * 60));
-        else pct = Math.min(70, 10 + Math.round(received / (50 * 1024 * 1024) * 60)); // estimate for 50MB
-        send({ type: 'progress', message: `Baixando playlist... ${mb} MB`, percent: pct });
+      // Track progress every 500ms
+      let lastProgressTime = Date.now();
+      stream.on('data', (chunk) => {
+        chunks.push(chunk);
+        received += chunk.length;
+        // Reset stall timer on data
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => handleStall(), 30000);
+        const now = Date.now();
+        if (now - lastProgressTime > 500) {
+          lastProgressTime = now;
+          const mb = (received / 1024 / 1024).toFixed(1);
+          let pct = 10;
+          if (totalSize > 0) pct = Math.min(70, 10 + Math.round((received / totalSize) * 60));
+          else pct = Math.min(70, 10 + Math.round(received / (50 * 1024 * 1024) * 60));
+          send({ type: 'progress', message: `Baixando playlist... ${mb} MB`, percent: pct });
+        }
+      });
+
+      stream.on('end', () => {
+        clearTimeout(stallTimer);
+        if (finished) return;
+        finished = true;
+        clearTimeout(totalTimer);
+        const content = Buffer.concat(chunks).toString('utf-8');
+        finishM3U(content);
+      });
+
+      stream.on('error', (err) => {
+        clearTimeout(stallTimer);
+        finish();
+        if (attempt < maxAttempts) {
+          send({ type: 'progress', message: `Erro no download, tentando novamente... (${attempt + 1}/${maxAttempts})`, percent: 5 });
+          setTimeout(() => downloadM3U(targetUrl, send, attempt + 1), 2000 * attempt);
+        } else {
+          send({ type: 'error', error: 'Erro no download: ' + err.message });
+          res.end();
+        }
+      });
+    });
+
+    dlReq.on('timeout', () => {
+      finish();
+      if (attempt < maxAttempts) {
+        send({ type: 'progress', message: `Conexão lenta, tentando novamente... (${attempt + 1}/${maxAttempts})`, percent: 5 });
+        setTimeout(() => downloadM3U(targetUrl, send, attempt + 1), 2000 * attempt);
+      } else {
+        send({ type: 'error', error: 'Tempo limite de conexão após múltiplas tentativas' });
+        res.end();
       }
     });
 
-    stream.on('end', () => {
-      const content = Buffer.concat(chunks).toString('utf-8');
-      finishM3U(content);
+    dlReq.on('error', (err) => {
+      finish();
+      if (attempt < maxAttempts) {
+        send({ type: 'progress', message: `Falha na conexão, tentando novamente... (${attempt + 1}/${maxAttempts})`, percent: 5 });
+        setTimeout(() => downloadM3U(targetUrl, send, attempt + 1), 2000 * attempt);
+      } else {
+        send({ type: 'error', error: 'Falha na conexão: ' + err.message });
+        res.end();
+      }
     });
 
-    stream.on('error', (err) => {
-      send({ type: 'error', error: 'Erro no download: ' + err.message });
-      res.end();
-    });
-  });
-
-  dlReq.on('timeout', () => {
-    dlReq.destroy();
-    send({ type: 'error', error: 'Tempo limite de conexao' });
-    res.end();
-  });
-
-  dlReq.on('error', (err) => {
-    send({ type: 'error', error: 'Falha na conexao: ' + err.message });
-    res.end();
-  });
-
-  dlReq.end();
+    dlReq.end();
+  }
 
   function finishM3U(content) {
     const mb = (Buffer.byteLength(content) / 1024 / 1024).toFixed(1);
@@ -632,23 +743,23 @@ app.post('/api/load-xtream', async (req, res) => {
     }
 
     send({ type: 'progress', message: 'Autenticado! Carregando categorias de TV...', percent: 10 });
-    const liveCats = await axios.get(`${base}&action=get_live_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
-    send({ type: 'progress', message: `Categorias de TV: ${Array.isArray(liveCats) ? liveCats.length : 0}. Carregando canais...`, percent: 20 });
+    const liveCats = await fetchXtreamApi(`${base}&action=get_live_categories`, 'Categorias TV', 30000);
+    send({ type: 'progress', message: `Categorias de TV: ${liveCats.length}. Carregando canais...`, percent: 20 });
 
-    const liveStreams = await axios.get(`${base}&action=get_live_streams`, { timeout: 120000 }).then(r => r.data).catch(() => []);
-    send({ type: 'progress', message: `${Array.isArray(liveStreams) ? liveStreams.length : 0} canais ao vivo. Carregando categorias de filmes...`, percent: 35 });
+    const liveStreams = await fetchXtreamApi(`${base}&action=get_live_streams`, 'Canais TV', 120000);
+    send({ type: 'progress', message: `${liveStreams.length} canais ao vivo. Carregando categorias de filmes...`, percent: 35 });
 
-    const vodCats = await axios.get(`${base}&action=get_vod_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
-    send({ type: 'progress', message: `Categorias de filmes: ${Array.isArray(vodCats) ? vodCats.length : 0}. Carregando filmes...`, percent: 45 });
+    const vodCats = await fetchXtreamApi(`${base}&action=get_vod_categories`, 'Categorias Filmes', 30000);
+    send({ type: 'progress', message: `Categorias de filmes: ${vodCats.length}. Carregando filmes...`, percent: 45 });
 
-    const vodStreams = await axios.get(`${base}&action=get_vod_streams`, { timeout: 120000 }).then(r => r.data).catch(() => []);
-    send({ type: 'progress', message: `${Array.isArray(vodStreams) ? vodStreams.length : 0} filmes. Carregando categorias de series...`, percent: 60 });
+    const vodStreams = await fetchXtreamApi(`${base}&action=get_vod_streams`, 'Filmes', 120000);
+    send({ type: 'progress', message: `${vodStreams.length} filmes. Carregando categorias de series...`, percent: 60 });
 
-    const seriesCats = await axios.get(`${base}&action=get_series_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
-    send({ type: 'progress', message: `Categorias de series: ${Array.isArray(seriesCats) ? seriesCats.length : 0}. Carregando series...`, percent: 70 });
+    const seriesCats = await fetchXtreamApi(`${base}&action=get_series_categories`, 'Categorias Series', 30000);
+    send({ type: 'progress', message: `Categorias de series: ${seriesCats.length}. Carregando series...`, percent: 70 });
 
-    const seriesData = await axios.get(`${base}&action=get_series`, { timeout: 120000 }).then(r => r.data).catch(() => []);
-    send({ type: 'progress', message: `${Array.isArray(seriesData) ? seriesData.length : 0} series. Montando playlist...`, percent: 85 });
+    const seriesData = await fetchXtreamApi(`${base}&action=get_series`, 'Series', 120000);
+    send({ type: 'progress', message: `${seriesData.length} series. Montando playlist...`, percent: 85 });
 
     const xtreamCfg = { server: cleanServer, username, password };
     const playlist = buildXtreamPlaylist(cleanServer, username, password, liveCats, liveStreams, vodCats, vodStreams, seriesCats, seriesData);
@@ -702,15 +813,28 @@ app.post('/api/refresh', async (req, res) => {
 
       send({ type: 'progress', message: 'Baixando playlist atualizada...', percent: 10 });
 
-      const content = await axios.get(url, {
-        timeout: 120000,
-        maxContentLength: 200 * 1024 * 1024,
-        responseType: 'text',
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      }).then(r => r.data);
+      let content = null;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const r = await axios.get(url, {
+            timeout: 120000,
+            maxContentLength: 200 * 1024 * 1024,
+            responseType: 'text',
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+          });
+          content = r.data;
+          break;
+        } catch (err) {
+          console.warn(`[M3U] Refresh falhou tentativa ${attempt}/2 - ${err.message}`);
+          if (attempt < 2) {
+            send({ type: 'progress', message: `Falha no download, tentando novamente...`, percent: 10 });
+            await new Promise(r => setTimeout(r, 3000));
+          }
+        }
+      }
 
-      if (!content.includes('#EXTM3U')) {
-        send({ type: 'error', error: 'Playlist M3U inválida' });
+      if (!content || !content.includes('#EXTM3U')) {
+        send({ type: 'error', error: 'Playlist M3U inválida ou falha no download' });
         return res.end();
       }
 
@@ -739,16 +863,16 @@ app.post('/api/refresh', async (req, res) => {
       }
 
       send({ type: 'progress', message: 'Carregando TV ao vivo...', percent: 15 });
-      const liveCats = await axios.get(`${base}&action=get_live_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
-      const liveStreams = await axios.get(`${base}&action=get_live_streams`, { timeout: 120000 }).then(r => r.data).catch(() => []);
+      const liveCats = await fetchXtreamApi(`${base}&action=get_live_categories`, 'Categorias TV', 30000);
+      const liveStreams = await fetchXtreamApi(`${base}&action=get_live_streams`, 'Canais TV', 120000);
 
       send({ type: 'progress', message: 'Carregando filmes...', percent: 40 });
-      const vodCats = await axios.get(`${base}&action=get_vod_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
-      const vodStreams = await axios.get(`${base}&action=get_vod_streams`, { timeout: 120000 }).then(r => r.data).catch(() => []);
+      const vodCats = await fetchXtreamApi(`${base}&action=get_vod_categories`, 'Categorias Filmes', 30000);
+      const vodStreams = await fetchXtreamApi(`${base}&action=get_vod_streams`, 'Filmes', 120000);
 
       send({ type: 'progress', message: 'Carregando séries...', percent: 65 });
-      const seriesCats = await axios.get(`${base}&action=get_series_categories`, { timeout: 30000 }).then(r => r.data).catch(() => []);
-      const seriesData = await axios.get(`${base}&action=get_series`, { timeout: 120000 }).then(r => r.data).catch(() => []);
+      const seriesCats = await fetchXtreamApi(`${base}&action=get_series_categories`, 'Categorias Series', 30000);
+      const seriesData = await fetchXtreamApi(`${base}&action=get_series`, 'Series', 120000);
 
       send({ type: 'progress', message: 'Montando playlist...', percent: 85 });
       const xtreamCfg = { server, username, password };

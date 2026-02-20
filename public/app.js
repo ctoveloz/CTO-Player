@@ -468,9 +468,9 @@ function renderSidebar() {
 
 function getGridClasses() {
   switch (state.settings.gridSize) {
-    case 'small': return 'row row-cols-3 row-cols-sm-4 row-cols-md-5 row-cols-lg-7 row-cols-xl-8 g-2';
-    case 'large': return 'row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-2';
-    default: return 'row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 row-cols-xl-6 g-2';
+    case 'small': return 'row row-cols-3 row-cols-sm-4 row-cols-md-5 row-cols-lg-7 row-cols-xl-8 row-cols-xxl-10 g-2';
+    case 'large': return 'row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6 g-2';
+    default: return 'row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 row-cols-xl-6 row-cols-xxl-8 g-2';
   }
 }
 

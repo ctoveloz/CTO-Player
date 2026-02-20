@@ -76,6 +76,28 @@ html, body {
   gap: 2px;
 }
 
+.sidebar-panel .list-group-item,
+#sidebar-mobile .list-group-item {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255,255,255,0.55);
+  transition: all 0.15s;
+  margin-bottom: 1px;
+}
+
+.sidebar-panel .list-group-item:hover,
+#sidebar-mobile .list-group-item:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.9);
+}
+
+.sidebar-panel .list-group-item.active,
+#sidebar-mobile .list-group-item.active {
+  background: var(--bs-primary);
+  color: #fff;
+}
+
 /* ===== CUSTOM SCROLLBAR ===== */
 .sidebar-panel::-webkit-scrollbar,
 #content-area::-webkit-scrollbar { width: 5px; }
