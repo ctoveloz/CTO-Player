@@ -12,14 +12,14 @@
 
   <!-- LOGIN VIEW -->
   <div id="login-view" class="view active">
-    <div class="login-card card p-4">
+    <div class="login-card card border-0 shadow-lg p-4">
       <div class="d-flex align-items-center gap-3 mb-1">
-        <div class="bg-primary rounded-3 d-flex align-items-center justify-content-center" style="width:40px;height:40px">
-          <i class="bi bi-play-fill text-white fs-4"></i>
+        <div class="bg-primary rounded-3 d-flex align-items-center justify-content-center" style="width:44px;height:44px">
+          <i class="bi bi-play-fill text-white fs-3"></i>
         </div>
-        <h1 class="fs-4 fw-bold mb-0">CtoPlayer</h1>
+        <h1 class="fs-4 fw-bold mb-0 text-white">CtoPlayer</h1>
       </div>
-      <p class="text-muted small mb-4">Reprodutor IPTV</p>
+      <p class="text-light opacity-50 small mb-4">Reprodutor IPTV</p>
 
       <ul class="nav nav-pills nav-fill mb-3" role="tablist">
         <li class="nav-item"><button class="nav-link active login-tab" data-tab="m3u">M3U Playlist</button></li>
@@ -28,13 +28,13 @@
 
       <form id="m3u-form" class="d-flex flex-column gap-2">
         <input type="url" id="m3u-url" class="form-control" placeholder="URL da playlist M3U" required autocomplete="url">
-        <button type="submit" class="btn btn-primary w-100">
+        <button type="submit" class="btn btn-primary w-100 fw-semibold">
           <span class="btn-text">Carregar Playlist</span>
           <span class="btn-loading" hidden>Carregando...</span>
         </button>
         <div class="progress-info" hidden>
           <div class="progress" style="height:4px"><div class="progress-bar progress-fill" style="width:0%"></div></div>
-          <span class="progress-text text-muted small"></span>
+          <span class="progress-text text-light opacity-50 small"></span>
         </div>
       </form>
 
@@ -42,40 +42,40 @@
         <input type="url" id="xtream-server" class="form-control" placeholder="URL do Servidor (http://...)" required>
         <input type="text" id="xtream-user" class="form-control" placeholder="Usu&#225;rio" required autocomplete="username">
         <input type="password" id="xtream-pass" class="form-control" placeholder="Senha" required autocomplete="current-password">
-        <button type="submit" class="btn btn-primary w-100">
+        <button type="submit" class="btn btn-primary w-100 fw-semibold">
           <span class="btn-text">Conectar</span>
           <span class="btn-loading" hidden>Conectando...</span>
         </button>
         <div class="progress-info" hidden>
           <div class="progress" style="height:4px"><div class="progress-bar progress-fill" style="width:0%"></div></div>
-          <span class="progress-text text-muted small"></span>
+          <span class="progress-text text-light opacity-50 small"></span>
         </div>
       </form>
 
       <div id="login-error" class="alert alert-danger mt-3 mb-0 py-2 small" hidden></div>
 
-      <p class="text-center text-muted small mt-3 mb-0">Projeto Open Source: <a href="https://github.com/ctoveloz/CTO-Player" target="_blank" rel="noopener" class="text-muted">github.com/ctoveloz/CTO-Player</a></p>
+      <p class="text-center text-light opacity-25 small mt-3 mb-0">Open Source: <a href="https://github.com/ctoveloz/CTO-Player" target="_blank" rel="noopener" class="text-light opacity-50">github.com/ctoveloz/CTO-Player</a></p>
     </div>
   </div>
 
   <!-- DASHBOARD VIEW -->
   <div id="dashboard-view" class="view">
-    <nav class="navbar navbar-dark bg-primary px-3 flex-shrink-0">
+    <nav class="navbar topbar-nav px-3 flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
-        <button id="btn-back-login" class="btn btn-sm btn-outline-light" title="Voltar"><i class="bi bi-arrow-left"></i></button>
-        <span class="navbar-brand mb-0 fw-bold">CtoPlayer</span>
-        <button class="btn btn-sm btn-outline-light d-md-none" data-bs-toggle="offcanvas" data-bs-target="#sidebar-offcanvas" title="Categorias"><i class="bi bi-list"></i></button>
+        <button id="btn-back-login" class="btn btn-sm btn-outline-light border-0 opacity-75" title="Voltar"><i class="bi bi-arrow-left"></i></button>
+        <span class="navbar-brand mb-0 fw-bold text-white"><i class="bi bi-play-fill text-primary me-1"></i>CtoPlayer</span>
+        <button class="btn btn-sm btn-outline-light border-0 opacity-75 d-md-none" data-bs-toggle="offcanvas" data-bs-target="#sidebar-offcanvas" title="Categorias"><i class="bi bi-list"></i></button>
       </div>
-      <div class="d-none d-sm-flex gap-1">
-        <button class="btn btn-sm btn-light tab active" data-type="live">TV ao Vivo</button>
-        <button class="btn btn-sm btn-outline-light tab" data-type="movies">Filmes</button>
-        <button class="btn btn-sm btn-outline-light tab" data-type="series">S&#233;ries</button>
+      <div class="d-none d-sm-flex gap-1 tab-group">
+        <button class="btn btn-sm tab active" data-type="live">TV ao Vivo</button>
+        <button class="btn btn-sm tab" data-type="movies">Filmes</button>
+        <button class="btn btn-sm tab" data-type="series">S&#233;ries</button>
       </div>
       <!-- Mobile tabs -->
-      <div class="d-flex d-sm-none gap-1">
-        <button class="btn btn-sm btn-light tab-mobile active" data-type="live"><i class="bi bi-tv"></i></button>
-        <button class="btn btn-sm btn-outline-light tab-mobile" data-type="movies"><i class="bi bi-film"></i></button>
-        <button class="btn btn-sm btn-outline-light tab-mobile" data-type="series"><i class="bi bi-collection-play"></i></button>
+      <div class="d-flex d-sm-none gap-1 tab-group">
+        <button class="btn btn-sm tab-mobile active" data-type="live"><i class="bi bi-tv"></i></button>
+        <button class="btn btn-sm tab-mobile" data-type="movies"><i class="bi bi-film"></i></button>
+        <button class="btn btn-sm tab-mobile" data-type="series"><i class="bi bi-collection-play"></i></button>
       </div>
       <div class="d-flex align-items-center gap-2">
         <select id="sort-select" class="form-select form-select-sm d-none d-lg-block" style="width:auto">
@@ -85,8 +85,8 @@
           <option value="za">Z - A</option>
         </select>
         <input type="search" id="search-input" class="form-control form-control-sm" placeholder="Buscar..." autocomplete="off" style="width:180px">
-        <button id="btn-settings" class="btn btn-sm btn-outline-light" title="Configura&#231;&#245;es"><i class="bi bi-gear"></i></button>
-        <button id="btn-logout" class="btn btn-sm btn-outline-light" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
+        <button id="btn-settings" class="btn btn-sm btn-outline-light border-0 opacity-75" title="Configura&#231;&#245;es"><i class="bi bi-gear"></i></button>
+        <button id="btn-logout" class="btn btn-sm btn-outline-light border-0 opacity-75" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
       </div>
     </nav>
 
@@ -97,7 +97,7 @@
       <!-- Sidebar mobile offcanvas -->
       <div class="offcanvas offcanvas-start" id="sidebar-offcanvas" tabindex="-1">
         <div class="offcanvas-header">
-          <h5 class="offcanvas-title">Categorias</h5>
+          <h5 class="offcanvas-title text-white">Categorias</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body p-0">
@@ -107,10 +107,10 @@
 
       <main id="content-area" class="flex-grow-1 overflow-auto p-3">
         <div id="content-grid"></div>
-        <div id="empty-state" class="text-center text-muted py-5" hidden>Nenhum item encontrado</div>
+        <div id="empty-state" class="text-center text-light opacity-50 py-5" hidden>Nenhum item encontrado</div>
         <div id="loading-state" class="text-center py-5" hidden>
           <div class="spinner-border text-primary" role="status"></div>
-          <p class="text-muted mt-2">Carregando conte&#250;do...</p>
+          <p class="text-light opacity-50 mt-2">Carregando conte&#250;do...</p>
         </div>
       </main>
     </div>
@@ -118,25 +118,25 @@
 
   <!-- SERIES DETAIL VIEW -->
   <div id="series-view" class="view">
-    <nav class="navbar navbar-dark bg-primary px-3 flex-shrink-0">
+    <nav class="navbar topbar-nav px-3 flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
-        <button id="btn-back-dashboard" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-left"></i></button>
-        <span id="series-title" class="navbar-brand mb-0 fw-bold text-truncate"></span>
+        <button id="btn-back-dashboard" class="btn btn-sm btn-outline-light border-0 opacity-75"><i class="bi bi-arrow-left"></i></button>
+        <span id="series-title" class="navbar-brand mb-0 fw-bold text-white text-truncate"></span>
       </div>
     </nav>
     <div class="flex-grow-1 overflow-auto p-3 p-lg-4">
       <div class="row g-4">
         <!-- Info panel left -->
         <div class="col-12 col-lg-4 col-xl-3">
-          <div class="card">
+          <div class="card border-0 shadow">
             <img id="series-cover" class="card-img-top" alt="" style="max-height:400px;object-fit:cover">
             <div class="card-body">
-              <h5 id="series-detail-title" class="card-title"></h5>
+              <h5 id="series-detail-title" class="card-title text-white"></h5>
               <div class="d-flex flex-wrap gap-1 mb-2" id="series-badges"></div>
-              <p id="series-genre" class="text-muted small mb-2" hidden></p>
-              <p id="series-plot" class="small mb-2" hidden></p>
-              <p id="series-cast" class="text-muted small mb-1" hidden></p>
-              <p id="series-director" class="text-muted small mb-2" hidden></p>
+              <p id="series-genre" class="text-light opacity-50 small mb-2" hidden></p>
+              <p id="series-plot" class="text-light small mb-2" hidden></p>
+              <p id="series-cast" class="text-light opacity-75 small mb-1" hidden></p>
+              <p id="series-director" class="text-light opacity-75 small mb-2" hidden></p>
               <a id="series-trailer" class="btn btn-sm btn-outline-danger mb-2" target="_blank" rel="noopener" hidden><i class="bi bi-youtube"></i> Trailer</a>
               <button id="btn-fav-series" class="btn btn-sm btn-outline-warning w-100"><i class="bi bi-star"></i> Favoritar</button>
             </div>
@@ -152,47 +152,47 @@
 
   <!-- SETTINGS VIEW -->
   <div id="settings-view" class="view">
-    <nav class="navbar navbar-dark bg-primary px-3 flex-shrink-0">
+    <nav class="navbar topbar-nav px-3 flex-shrink-0">
       <div class="d-flex align-items-center gap-2">
-        <button id="btn-back-settings" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-left"></i></button>
-        <span class="navbar-brand mb-0 fw-bold">Configura&#231;&#245;es</span>
+        <button id="btn-back-settings" class="btn btn-sm btn-outline-light border-0 opacity-75"><i class="bi bi-arrow-left"></i></button>
+        <span class="navbar-brand mb-0 fw-bold text-white">Configura&#231;&#245;es</span>
       </div>
     </nav>
     <div class="flex-grow-1 overflow-auto p-4">
       <div class="mx-auto" style="max-width:600px">
         <!-- Card 1: Playback -->
         <form id="settings-form">
-          <div class="card mb-3">
-            <div class="card-header fw-semibold"><i class="bi bi-play-circle me-2"></i>Reprodu&#231;&#227;o</div>
+          <div class="card border-0 shadow mb-3">
+            <div class="card-header border-0 fw-semibold text-white"><i class="bi bi-play-circle text-primary me-2"></i>Reprodu&#231;&#227;o</div>
             <div class="card-body d-flex flex-column gap-3">
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Pular cr&#233;ditos finais (segundos)</label><p class="text-muted small mb-0">Pula automaticamente para o pr&#243;ximo epis&#243;dio</p></div>
+                <div><label class="form-label mb-0 small fw-semibold text-white">Pular cr&#233;ditos finais (segundos)</label><p class="text-light opacity-50 small mb-0">Pula automaticamente para o pr&#243;ximo epis&#243;dio</p></div>
                 <input type="number" id="setting-skip-credits" min="0" max="300" step="5" value="0" class="form-control form-control-sm" style="width:80px">
               </div>
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Pular intro (segundos)</label><p class="text-muted small mb-0">Avan&#231;a automaticamente no in&#237;cio dos epis&#243;dios</p></div>
+                <div><label class="form-label mb-0 small fw-semibold text-white">Pular intro (segundos)</label><p class="text-light opacity-50 small mb-0">Avan&#231;a automaticamente no in&#237;cio dos epis&#243;dios</p></div>
                 <input type="number" id="setting-skip-intro" min="0" max="120" step="5" value="0" class="form-control form-control-sm" style="width:80px">
               </div>
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Auto-play pr&#243;ximo epis&#243;dio</label><p class="text-muted small mb-0">Reproduz automaticamente ao terminar</p></div>
+                <div><label class="form-label mb-0 small fw-semibold text-white">Auto-play pr&#243;ximo epis&#243;dio</label><p class="text-light opacity-50 small mb-0">Reproduz automaticamente ao terminar</p></div>
                 <div class="form-check form-switch"><input type="checkbox" id="setting-autoplay-next" class="form-check-input" checked></div>
               </div>
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Volume padr&#227;o</label><p class="text-muted small mb-0">Volume inicial do player</p></div>
+                <div><label class="form-label mb-0 small fw-semibold text-white">Volume padr&#227;o</label><p class="text-light opacity-50 small mb-0">Volume inicial do player</p></div>
                 <div class="d-flex align-items-center gap-2" style="width:160px">
                   <input type="range" id="setting-volume" min="0" max="100" value="100" class="form-range flex-grow-1">
-                  <span id="setting-volume-label" class="small text-muted" style="min-width:30px">100</span>
+                  <span id="setting-volume-label" class="small text-light opacity-75" style="min-width:30px">100</span>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Card 2: Interface -->
-          <div class="card mb-3">
-            <div class="card-header fw-semibold"><i class="bi bi-grid me-2"></i>Interface</div>
+          <div class="card border-0 shadow mb-3">
+            <div class="card-header border-0 fw-semibold text-white"><i class="bi bi-grid text-primary me-2"></i>Interface</div>
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between gap-3">
-                <div><label class="form-label mb-0 small fw-semibold">Tamanho do grid</label><p class="text-muted small mb-0">Tamanho dos cards na lista</p></div>
+                <div><label class="form-label mb-0 small fw-semibold text-white">Tamanho do grid</label><p class="text-light opacity-50 small mb-0">Tamanho dos cards na lista</p></div>
                 <select id="setting-grid-size" class="form-select form-select-sm" style="width:140px">
                   <option value="small">Pequeno</option>
                   <option value="medium" selected>M&#233;dio</option>
@@ -202,34 +202,34 @@
             </div>
           </div>
 
-          <button type="submit" class="btn btn-success w-100 mb-3"><i class="bi bi-check-lg me-1"></i>Salvar Configura&#231;&#245;es</button>
+          <button type="submit" class="btn btn-primary w-100 mb-3 fw-semibold"><i class="bi bi-check-lg me-1"></i>Salvar Configura&#231;&#245;es</button>
         </form>
 
         <!-- Card 3: Playlist -->
-        <div class="card mb-3">
-          <div class="card-header fw-semibold"><i class="bi bi-music-note-list me-2"></i>Playlist</div>
+        <div class="card border-0 shadow mb-3">
+          <div class="card-header border-0 fw-semibold text-white"><i class="bi bi-music-note-list text-primary me-2"></i>Playlist</div>
           <div class="card-body">
             <div class="d-flex align-items-center justify-content-between gap-3">
-              <div><label class="form-label mb-0 small fw-semibold">Atualizar lista</label><p class="text-muted small mb-0">Baixa novamente a playlist para atualizar o conte&#250;do</p></div>
-              <button id="btn-refresh" class="btn btn-sm btn-info btn-refresh"><i class="bi bi-arrow-clockwise me-1"></i><span id="btn-refresh-text">Atualizar</span></button>
+              <div><label class="form-label mb-0 small fw-semibold text-white">Atualizar lista</label><p class="text-light opacity-50 small mb-0">Baixa novamente a playlist para atualizar o conte&#250;do</p></div>
+              <button id="btn-refresh" class="btn btn-sm btn-primary btn-refresh"><i class="bi bi-arrow-clockwise me-1"></i><span id="btn-refresh-text">Atualizar</span></button>
             </div>
             <div id="refresh-progress" class="mt-2" hidden>
-              <div class="progress" style="height:4px"><div id="refresh-progress-fill" class="progress-bar bg-info" style="width:0%"></div></div>
-              <span id="refresh-status" class="text-muted small"></span>
+              <div class="progress" style="height:4px"><div id="refresh-progress-fill" class="progress-bar" style="width:0%"></div></div>
+              <span id="refresh-status" class="text-light opacity-50 small"></span>
             </div>
           </div>
         </div>
 
         <!-- Card 4: Data -->
-        <div class="card mb-3">
-          <div class="card-header fw-semibold"><i class="bi bi-database me-2"></i>Dados</div>
+        <div class="card border-0 shadow mb-3">
+          <div class="card-header border-0 fw-semibold text-white"><i class="bi bi-database text-primary me-2"></i>Dados</div>
           <div class="card-body d-flex flex-column gap-2">
             <div class="d-flex align-items-center justify-content-between gap-3">
-              <div><label class="form-label mb-0 small fw-semibold">Limpar hist&#243;rico</label><p class="text-muted small mb-0">Remove todo o progresso de filmes e s&#233;ries assistidos</p></div>
+              <div><label class="form-label mb-0 small fw-semibold text-white">Limpar hist&#243;rico</label><p class="text-light opacity-50 small mb-0">Remove todo o progresso de filmes e s&#233;ries assistidos</p></div>
               <button id="btn-clear-progress" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Limpar</button>
             </div>
             <div class="d-flex align-items-center justify-content-between gap-3">
-              <div><label class="form-label mb-0 small fw-semibold">Limpar favoritos</label><p class="text-muted small mb-0">Remove todos os itens favoritados</p></div>
+              <div><label class="form-label mb-0 small fw-semibold text-white">Limpar favoritos</label><p class="text-light opacity-50 small mb-0">Remove todos os itens favoritados</p></div>
               <button id="btn-clear-favorites" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Limpar</button>
             </div>
           </div>
@@ -241,47 +241,57 @@
   <!-- PLAYER VIEW -->
   <div id="player-view" class="view">
     <div class="player-topbar">
-      <button id="btn-back-player" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-left"></i></button>
+      <button id="btn-back-player" class="btn btn-sm btn-outline-light border-0"><i class="bi bi-arrow-left"></i></button>
       <span id="player-title" class="text-white fw-semibold text-truncate"></span>
       <div id="ep-nav-buttons" class="d-flex gap-1 ms-auto" hidden>
-        <button id="btn-prev-ep" class="btn btn-sm btn-outline-light" title="Epis&#243;dio anterior"><i class="bi bi-skip-start-fill"></i></button>
-        <button id="btn-next-ep" class="btn btn-sm btn-outline-light" title="Pr&#243;ximo epis&#243;dio"><i class="bi bi-skip-end-fill"></i></button>
+        <button id="btn-prev-ep" class="btn btn-sm btn-outline-light border-0" title="Epis&#243;dio anterior"><i class="bi bi-skip-start-fill"></i></button>
+        <button id="btn-next-ep" class="btn btn-sm btn-outline-light border-0" title="Pr&#243;ximo epis&#243;dio"><i class="bi bi-skip-end-fill"></i></button>
       </div>
     </div>
     <video id="video-player" controls autoplay></video>
     <div id="player-error" class="player-error" hidden>
-      <p class="text-muted">Falha ao reproduzir o stream</p>
+      <p class="text-light opacity-50">Falha ao reproduzir o stream</p>
       <button id="btn-retry" class="btn btn-primary btn-sm">Tentar novamente</button>
     </div>
     <div id="next-ep-overlay" class="next-ep-overlay" hidden>
-      <div class="card border-secondary p-3" style="min-width:260px;backdrop-filter:blur(8px)">
-        <span class="text-muted small text-uppercase">Pr&#243;ximo epis&#243;dio em <span id="next-ep-countdown" class="text-primary fw-bold">10</span>s</span>
-        <span id="next-ep-name" class="fw-semibold text-truncate" style="max-width:300px"></span>
+      <div class="card border-0 shadow-lg p-3" style="min-width:260px;backdrop-filter:blur(12px);background:rgba(30,30,30,0.9)">
+        <span class="text-light opacity-50 small text-uppercase">Pr&#243;ximo epis&#243;dio em <span id="next-ep-countdown" class="text-primary fw-bold">10</span>s</span>
+        <span id="next-ep-name" class="fw-semibold text-white text-truncate" style="max-width:300px"></span>
         <div class="d-flex gap-2 mt-2">
           <button id="btn-next-ep-play" class="btn btn-primary btn-sm" onclick="playNextEpisode()">Reproduzir agora</button>
-          <button id="btn-next-ep-cancel" class="btn btn-outline-secondary btn-sm" onclick="cancelNextEpisode()">Cancelar</button>
+          <button id="btn-next-ep-cancel" class="btn btn-outline-light btn-sm" onclick="cancelNextEpisode()">Cancelar</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- VOD DETAIL OFFCANVAS -->
-  <div class="offcanvas offcanvas-end" id="vod-detail-offcanvas" tabindex="-1" style="max-width:400px;width:90%">
-    <div class="offcanvas-header">
-      <h5 class="offcanvas-title text-truncate" id="vod-detail-title"></h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body">
-      <img id="vod-detail-cover" class="img-fluid rounded mb-3 w-100" alt="" style="max-height:350px;object-fit:cover">
-      <div class="d-flex flex-wrap gap-1 mb-2" id="vod-detail-badges"></div>
-      <p id="vod-detail-genre" class="text-muted small mb-2" hidden></p>
-      <p id="vod-detail-plot" class="small mb-2" hidden></p>
-      <p id="vod-detail-cast" class="text-muted small mb-1" hidden></p>
-      <p id="vod-detail-director" class="text-muted small mb-2" hidden></p>
-      <a id="vod-detail-trailer" class="btn btn-sm btn-outline-danger mb-3 w-100" target="_blank" rel="noopener" hidden><i class="bi bi-youtube me-1"></i>Trailer</a>
-      <div class="d-flex gap-2">
-        <button id="vod-detail-play" class="btn btn-success flex-grow-1"><i class="bi bi-play-fill me-1"></i>Assistir</button>
-        <button id="vod-detail-fav" class="btn btn-outline-warning"><i class="bi bi-star"></i></button>
+  <!-- VOD/SERIES DETAIL MODAL -->
+  <div class="modal fade" id="detail-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg overflow-hidden">
+        <div class="detail-backdrop" id="detail-backdrop"></div>
+        <div class="modal-body position-relative p-0">
+          <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+          <div class="row g-0">
+            <div class="col-md-5">
+              <img id="detail-cover" class="w-100 h-100 object-fit-cover" alt="" style="min-height:300px">
+            </div>
+            <div class="col-md-7 p-4 d-flex flex-column detail-info-col">
+              <h4 id="detail-title" class="fw-bold text-white mb-2"></h4>
+              <div class="d-flex flex-wrap gap-1 mb-3" id="detail-badges"></div>
+              <p id="detail-genre" class="text-light opacity-75 small mb-2" hidden></p>
+              <p id="detail-plot" class="text-light small mb-3" hidden></p>
+              <p id="detail-cast" class="text-light opacity-75 small mb-1" hidden></p>
+              <p id="detail-director" class="text-light opacity-75 small mb-2" hidden></p>
+              <a id="detail-trailer" class="btn btn-sm btn-outline-danger mb-3 align-self-start" target="_blank" rel="noopener" hidden><i class="bi bi-youtube me-1"></i>Trailer</a>
+              <div id="detail-loading" class="text-center py-3" hidden><div class="spinner-border spinner-border-sm text-primary"></div></div>
+              <div class="mt-auto d-flex gap-2 pt-3">
+                <button id="detail-play" class="btn btn-primary flex-grow-1 fw-semibold"><i class="bi bi-play-fill me-1"></i>Assistir</button>
+                <button id="detail-fav" class="btn btn-outline-warning"><i class="bi bi-star"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -289,14 +299,15 @@
   <!-- RESUME DIALOG (Bootstrap Modal) -->
   <div class="modal fade" id="resume-modal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-      <div class="modal-content">
+      <div class="modal-content border-0 shadow-lg">
         <div class="modal-body text-center p-4">
-          <p class="fw-bold mb-1">Continuar assistindo?</p>
-          <p id="resume-item-name" class="text-muted small text-truncate mb-0"></p>
+          <i class="bi bi-play-circle text-primary fs-1 mb-2 d-block"></i>
+          <p class="fw-bold text-white mb-1">Continuar assistindo?</p>
+          <p id="resume-item-name" class="text-light opacity-75 small text-truncate mb-0"></p>
           <p id="resume-time-info" class="text-primary small mb-3"></p>
           <div class="d-flex flex-column gap-2">
-            <button id="btn-resume-yes" class="btn btn-success btn-sm">Continuar de onde parei</button>
-            <button id="btn-resume-no" class="btn btn-outline-secondary btn-sm">Come&#231;ar do in&#237;cio</button>
+            <button id="btn-resume-yes" class="btn btn-primary btn-sm fw-semibold">Continuar de onde parei</button>
+            <button id="btn-resume-no" class="btn btn-outline-light btn-sm">Come&#231;ar do in&#237;cio</button>
           </div>
         </div>
       </div>

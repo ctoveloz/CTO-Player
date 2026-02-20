@@ -276,14 +276,10 @@ function setupDashboard() {
   const allTabs = [...$$('.tab'), ...$$('.tab-mobile')];
   allTabs.forEach(btn => {
     btn.addEventListener('click', () => {
-      $$('.tab').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
-      $$('.tab-mobile').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
-      // Activate matching tabs
+      $$('.tab').forEach(b => b.classList.remove('active'));
+      $$('.tab-mobile').forEach(b => b.classList.remove('active'));
       const type = btn.dataset.type;
-      allTabs.filter(t => t.dataset.type === type).forEach(t => {
-        t.classList.add('btn-light', 'active');
-        t.classList.remove('btn-outline-light');
-      });
+      allTabs.filter(t => t.dataset.type === type).forEach(t => t.classList.add('active'));
       state.tab = type;
       state.category = 'all';
       state.sort = 'newest';
@@ -336,12 +332,12 @@ function showDashboard() {
   $('#search-input').value = '';
   $('#sort-select').value = 'newest';
 
-  $$('.tab').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
-  $$('.tab-mobile').forEach(b => { b.classList.remove('btn-light', 'active'); b.classList.add('btn-outline-light'); });
+  $$('.tab').forEach(b => b.classList.remove('active'));
+  $$('.tab-mobile').forEach(b => b.classList.remove('active'));
   const liveTab = $('.tab[data-type="live"]');
   const liveMobile = $('.tab-mobile[data-type="live"]');
-  if (liveTab) { liveTab.classList.add('btn-light', 'active'); liveTab.classList.remove('btn-outline-light'); }
-  if (liveMobile) { liveMobile.classList.add('btn-light', 'active'); liveMobile.classList.remove('btn-outline-light'); }
+  if (liveTab) liveTab.classList.add('active');
+  if (liveMobile) liveMobile.classList.add('active');
 
   showView('dashboard');
   renderSidebar();
@@ -539,7 +535,7 @@ function renderContent(append = false) {
 
   if (state.allFilteredItems.length > limit) {
     const more = document.createElement('div');
-    more.className = 'loading-more col-12 text-center py-3 text-secondary small';
+    more.className = 'loading-more col-12 text-center py-3 text-light opacity-50 small';
     more.innerHTML = `<div class="spinner-border spinner-border-sm text-primary mb-1"></div><div>Carregando... (${limit} de ${state.allFilteredItems.length})</div>`;
     grid.appendChild(more);
   }
@@ -553,11 +549,11 @@ function createGridItem(item) {
 
   const fav = isFavorite(item);
   const isLive = state.tab === 'live';
-  const posterRatio = isLive ? 'ratio-16x9' : 'ratio-2x3';
+  const posterClass = isLive ? 'card-poster live-poster' : 'card-poster';
 
   const posterImg = item.logo
-    ? `<img src="${escapeAttr(item.logo)}" alt="" loading="lazy" class="w-100 h-100 object-fit-cover" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-100 h-100 d-flex align-items-center justify-content-center text-secondary',innerHTML:'<i class=\\'bi bi-play-circle fs-1\\'></i>'}))">`
-    : `<div class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary"><i class="bi bi-play-circle fs-1"></i></div>`;
+    ? `<img src="${escapeAttr(item.logo)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-100 h-100 d-flex align-items-center justify-content-center',innerHTML:'<i class=\\'bi bi-play-circle fs-1 text-light opacity-25\\'></i>'}))">`
+    : `<div class="w-100 h-100 d-flex align-items-center justify-content-center"><i class="bi bi-play-circle fs-1 text-light opacity-25"></i></div>`;
 
   let progressHtml = '';
   if (!item.isSeries && item.url) {
@@ -568,16 +564,23 @@ function createGridItem(item) {
     }
   }
 
+  // Hover overlay with rating/year
+  let overlayContent = '';
+  if (item.rating) overlayContent += `<span class="rating-badge"><i class="bi bi-star-fill"></i> ${escapeHtml(item.rating)}</span>`;
+  if (item.year) overlayContent += `<span class="year-badge">${escapeHtml(item.year)}</span>`;
+  const overlayHtml = overlayContent ? `<div class="poster-overlay">${overlayContent}</div>` : '';
+
   col.innerHTML = `
     <div class="card h-100 grid-card">
-      <div class="card-poster ${posterRatio} position-relative">
+      <div class="${posterClass}">
         ${posterImg}
+        ${overlayHtml}
         <button class="btn-fav ${fav ? 'is-fav' : ''}" data-fav>${fav ? '\u2605' : '\u2606'}</button>
       </div>
       ${progressHtml}
       <div class="card-body p-2">
-        <div class="small fw-medium text-truncate" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</div>
-        <div class="small text-secondary text-truncate">${escapeHtml(item.group)}</div>
+        <div class="small fw-medium text-white text-truncate" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</div>
+        <div class="small text-light opacity-50 text-truncate">${escapeHtml(item.group)}</div>
       </div>
     </div>
   `;
@@ -606,31 +609,40 @@ function createGridItem(item) {
   return col;
 }
 
-// ===================== MOVIE DETAIL (OFFCANVAS) =====================
+// ===================== MOVIE DETAIL (MODAL) =====================
 
 async function openMovieDetail(item) {
-  const offcanvasEl = $('#vod-detail-offcanvas');
-  const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+  const modalEl = $('#detail-modal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
-  $('#vod-detail-title').textContent = item.name;
-  $('#vod-detail-cover').src = item.logo || '';
-  $('#vod-detail-cover').hidden = !item.logo;
+  $('#detail-title').textContent = item.name;
+  $('#detail-cover').src = item.logo || '';
+  $('#detail-cover').hidden = !item.logo;
+
+  // Blurred backdrop
+  const backdrop = $('#detail-backdrop');
+  if (item.logo) {
+    backdrop.style.backgroundImage = `url(${item.logo})`;
+  } else {
+    backdrop.style.backgroundImage = 'none';
+  }
 
   // Badges
   let badges = '';
-  if (item.rating) badges += `<span class="badge bg-warning text-dark">\u2605 ${escapeHtml(item.rating)}</span>`;
+  if (item.rating) badges += `<span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i> ${escapeHtml(item.rating)}</span>`;
   if (item.year) badges += `<span class="badge bg-secondary">${escapeHtml(item.year)}</span>`;
-  $('#vod-detail-badges').innerHTML = badges;
+  $('#detail-badges').innerHTML = badges;
 
   // Clear pending fields
-  $('#vod-detail-genre').hidden = true;
-  $('#vod-detail-plot').hidden = true;
-  $('#vod-detail-cast').hidden = true;
-  $('#vod-detail-director').hidden = true;
-  $('#vod-detail-trailer').hidden = true;
+  $('#detail-genre').hidden = true;
+  $('#detail-plot').hidden = true;
+  $('#detail-cast').hidden = true;
+  $('#detail-director').hidden = true;
+  $('#detail-trailer').hidden = true;
+  $('#detail-loading').hidden = false;
 
   // Fav button
-  const favBtn = $('#vod-detail-fav');
+  const favBtn = $('#detail-fav');
   const fav = isFavorite(item);
   favBtn.innerHTML = fav ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>';
   favBtn.className = fav ? 'btn btn-warning' : 'btn btn-outline-warning';
@@ -642,32 +654,37 @@ async function openMovieDetail(item) {
   };
 
   // Play button
-  $('#vod-detail-play').onclick = () => {
-    offcanvas.hide();
+  $('#detail-play').onclick = () => {
+    modal.hide();
     maybeResumeOrPlay(item.url, item.name, 'dashboard');
   };
 
-  offcanvas.show();
+  modal.show();
 
   // Fetch full details
   try {
     const res = await fetch(`/api/vod/${item.streamId}`);
     if (res.ok) {
       const info = await res.json();
-      if (info.plot) { $('#vod-detail-plot').textContent = info.plot; $('#vod-detail-plot').hidden = false; }
-      if (info.genre) { $('#vod-detail-genre').textContent = info.genre; $('#vod-detail-genre').hidden = false; }
-      if (info.cast) { $('#vod-detail-cast').innerHTML = `<strong>Elenco:</strong> ${escapeHtml(info.cast)}`; $('#vod-detail-cast').hidden = false; }
-      if (info.director) { $('#vod-detail-director').innerHTML = `<strong>Dire\u00e7\u00e3o:</strong> ${escapeHtml(info.director)}`; $('#vod-detail-director').hidden = false; }
+      if (info.plot) { $('#detail-plot').textContent = info.plot; $('#detail-plot').hidden = false; }
+      if (info.genre) { $('#detail-genre').textContent = info.genre; $('#detail-genre').hidden = false; }
+      if (info.cast) { $('#detail-cast').innerHTML = `<strong>Elenco:</strong> ${escapeHtml(info.cast)}`; $('#detail-cast').hidden = false; }
+      if (info.director) { $('#detail-director').innerHTML = `<strong>Dire\u00e7\u00e3o:</strong> ${escapeHtml(info.director)}`; $('#detail-director').hidden = false; }
       if (info.duration) {
-        $('#vod-detail-badges').innerHTML += `<span class="badge bg-info">${escapeHtml(info.duration)}</span>`;
+        $('#detail-badges').innerHTML += `<span class="badge bg-info"><i class="bi bi-clock"></i> ${escapeHtml(info.duration)}</span>`;
       }
-      if (info.cover) { $('#vod-detail-cover').src = info.cover; $('#vod-detail-cover').hidden = false; }
+      if (info.cover) {
+        $('#detail-cover').src = info.cover;
+        $('#detail-cover').hidden = false;
+        backdrop.style.backgroundImage = `url(${info.cover})`;
+      }
       if (info.youtubeTrailer) {
-        $('#vod-detail-trailer').href = `https://www.youtube.com/watch?v=${encodeURIComponent(info.youtubeTrailer)}`;
-        $('#vod-detail-trailer').hidden = false;
+        $('#detail-trailer').href = `https://www.youtube.com/watch?v=${encodeURIComponent(info.youtubeTrailer)}`;
+        $('#detail-trailer').hidden = false;
       }
     }
   } catch (e) { /* basic info already shown */ }
+  finally { $('#detail-loading').hidden = true; }
 }
 
 // ===================== RESUME OR PLAY =====================
@@ -723,11 +740,11 @@ async function openSeries(item) {
 
   // Show rating/year from grid data
   let badges = '';
-  if (item.rating) badges += `<span class="badge bg-warning text-dark">\u2605 ${escapeHtml(item.rating)}</span>`;
+  if (item.rating) badges += `<span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i> ${escapeHtml(item.rating)}</span>`;
   if (item.year) badges += `<span class="badge bg-secondary">${escapeHtml(item.year)}</span>`;
   $('#series-badges').innerHTML = badges;
 
-  $('#series-seasons').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="text-secondary mt-2">Carregando temporadas...</p></div>';
+  $('#series-seasons').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="text-light opacity-50 mt-2">Carregando temporadas...</p></div>';
   showView('series');
   $('#btn-back-dashboard').onclick = () => showView('dashboard');
 
@@ -753,9 +770,9 @@ async function openSeries(item) {
         $('#series-trailer').hidden = false;
       }
       let extraBadges = '';
-      if (data.rating) extraBadges += `<span class="badge bg-warning text-dark">\u2605 ${escapeHtml(data.rating)}</span>`;
+      if (data.rating) extraBadges += `<span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i> ${escapeHtml(data.rating)}</span>`;
       if (data.releaseDate) extraBadges += `<span class="badge bg-secondary">${escapeHtml(data.releaseDate)}</span>`;
-      if (data.episodeRunTime) extraBadges += `<span class="badge bg-info">${escapeHtml(data.episodeRunTime)} min</span>`;
+      if (data.episodeRunTime) extraBadges += `<span class="badge bg-info"><i class="bi bi-clock"></i> ${escapeHtml(data.episodeRunTime)} min</span>`;
       if (extraBadges) $('#series-badges').innerHTML = extraBadges;
 
       renderSeasons(data);
@@ -818,8 +835,8 @@ function renderSeasons(data) {
         <div class="list-group-item list-group-item-action p-0">
           <div class="episode-item d-flex align-items-center gap-2 px-3 py-2" data-url="${escapeAttr(ep.url)}" data-name="${escapeAttr(ep.name)}" data-queue-idx="${queueIdx}">
             <span class="text-primary fw-bold small">E${String(ep.episode).padStart(2, '0')}</span>
-            <span class="small flex-grow-1 text-truncate">${escapeHtml(ep.name)}</span>
-            ${ep.duration ? `<span class="text-secondary small">${escapeHtml(ep.duration)}</span>` : ''}
+            <span class="small flex-grow-1 text-truncate text-white">${escapeHtml(ep.name)}</span>
+            ${ep.duration ? `<span class="text-light opacity-50 small">${escapeHtml(ep.duration)}</span>` : ''}
             ${watchedBadge}
           </div>
           ${progressBar}
@@ -1193,7 +1210,7 @@ function setupSettings() {
     // Apply grid size immediately
     renderContent();
 
-    const btn = e.target.querySelector('.btn-primary');
+    const btn = e.target.querySelector('[type="submit"]');
     const orig = btn.innerHTML;
     btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Salvo!';
     btn.disabled = true;

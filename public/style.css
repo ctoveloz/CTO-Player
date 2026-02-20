@@ -3,11 +3,14 @@
 
 :root {
   --sidebar-w: 220px;
+  --topbar-bg: #0d0d0d;
+  --surface: #181818;
 }
 
 html, body {
   height: 100%;
   overflow: hidden;
+  background: #0d0d0d;
 }
 
 /* ===== VIEW SYSTEM ===== */
@@ -18,11 +21,13 @@ html, body {
 #login-view {
   align-items: center;
   justify-content: center;
+  background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d0d 70%);
 }
 
 .login-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
+  background: var(--surface) !important;
 }
 
 /* ===== VIEWS LAYOUT ===== */
@@ -32,11 +37,40 @@ html, body {
   flex-direction: column;
 }
 
+/* ===== TOPBAR ===== */
+.topbar-nav {
+  background: var(--topbar-bg);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ===== TABS ===== */
+.tab-group .tab,
+.tab-group .tab-mobile {
+  color: rgba(255,255,255,0.5);
+  border: none;
+  background: none;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.tab-group .tab:hover,
+.tab-group .tab-mobile:hover {
+  color: rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.06);
+}
+
+.tab-group .tab.active,
+.tab-group .tab-mobile.active {
+  color: #fff;
+  background: var(--bs-primary);
+}
+
 /* ===== DASHBOARD SIDEBAR ===== */
 .sidebar-panel {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
-  border-right: 1px solid var(--bs-border-color);
+  background: var(--topbar-bg);
+  border-right: 1px solid rgba(255,255,255,0.06);
   overflow-y: auto;
   padding: 8px;
   gap: 2px;
@@ -48,25 +82,75 @@ html, body {
 .sidebar-panel::-webkit-scrollbar-track,
 #content-area::-webkit-scrollbar-track { background: transparent; }
 .sidebar-panel::-webkit-scrollbar-thumb,
-#content-area::-webkit-scrollbar-thumb { background: var(--bs-border-color); border-radius: 4px; }
+#content-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+.sidebar-panel::-webkit-scrollbar-thumb:hover,
+#content-area::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ===== GRID CARDS ===== */
+.grid-card {
+  border: none !important;
+  background: var(--surface) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.grid-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
 
 /* ===== GRID ITEM POSTER ===== */
-.grid-item-poster {
+.card-poster {
   position: relative;
   width: 100%;
   aspect-ratio: 2/3;
-  background: var(--bs-tertiary-bg);
+  background: #111;
   overflow: hidden;
 }
 
-.grid-item-poster img {
+.card-poster img,
+.card-poster > div {
   width: 100%;
   height: 100%;
-  object-fit: cover;
 }
 
-.live-poster {
+.card-poster img { object-fit: cover; }
+
+.card-poster.live-poster {
   aspect-ratio: 16/9;
+}
+
+/* ===== HOVER OVERLAY (rating on poster) ===== */
+.poster-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 30px 8px 8px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+
+.grid-card:hover .poster-overlay {
+  opacity: 1;
+}
+
+.poster-overlay .rating-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.poster-overlay .year-badge {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
 }
 
 /* ===== FAVORITE BUTTON (overlay on poster) ===== */
@@ -79,7 +163,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0,0,0,0.5);
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -89,17 +173,18 @@ html, body {
   transition: opacity 0.2s;
   z-index: 2;
   padding: 0;
-  color: var(--bs-secondary-color);
+  color: rgba(255,255,255,0.6);
+  pointer-events: all;
 }
 
-.card:hover .btn-fav { opacity: 1; }
+.grid-card:hover .btn-fav { opacity: 1; }
 .btn-fav.is-fav { opacity: 1; color: #fbbf24; }
 .btn-fav:hover { background: rgba(0,0,0,0.8); transform: scale(1.1); }
 
 /* ===== GRID ITEM PROGRESS (thin bar under poster) ===== */
 .grid-item-progress {
   height: 3px;
-  background: var(--bs-border-color);
+  background: rgba(255,255,255,0.08);
   overflow: hidden;
 }
 
@@ -114,7 +199,7 @@ html, body {
 /* ===== EPISODE PROGRESS BAR ===== */
 .episode-progress-bar {
   height: 3px;
-  background: var(--bs-border-color);
+  background: rgba(255,255,255,0.08);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -128,6 +213,31 @@ html, body {
 
 .episode-progress-fill.completed { background: var(--bs-success); }
 
+/* ===== DETAIL MODAL ===== */
+#detail-modal .modal-content {
+  background: var(--surface);
+}
+
+.detail-backdrop {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(30px) brightness(0.3);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.detail-info-col {
+  position: relative;
+  z-index: 1;
+}
+
+#detail-modal .row {
+  position: relative;
+  z-index: 1;
+}
+
 /* ===== PLAYER VIEW ===== */
 #player-view {
   flex-direction: column;
@@ -140,7 +250,7 @@ html, body {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(0,0,0,0.8);
+  background: linear-gradient(rgba(0,0,0,0.85), transparent);
   position: absolute;
   top: 0;
   left: 0;
@@ -214,4 +324,8 @@ html, body {
 /* ===== RESPONSIVE ===== */
 @media (max-width: 576px) {
   .login-card { margin: 16px; }
+}
+
+@media (max-width: 767px) {
+  #detail-modal .col-md-5 { max-height: 250px; overflow: hidden; }
 }
