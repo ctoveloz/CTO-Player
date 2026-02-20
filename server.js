@@ -386,7 +386,7 @@ function groupSeriesItems(items) {
 
 // ===================== XTREAM API HELPER =====================
 
-async function fetchXtreamApi(url, label, timeout, retries = 2) {
+async function fetchXtreamApi(url, label, timeout, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const res = await axios.get(url, {
@@ -398,26 +398,29 @@ async function fetchXtreamApi(url, label, timeout, retries = 2) {
       // Some Xtream servers return error objects or HTML instead of arrays
       if (Array.isArray(data)) return data;
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        // Could be { "error": "..." } or empty object
         console.warn(`[XTREAM] ${label}: resposta não é array (tentativa ${attempt}):`, JSON.stringify(data).substring(0, 200));
-        if (attempt < retries) continue;
+        if (attempt < retries) { await backoff(attempt); continue; }
         return [];
       }
-      // null, string, number, etc.
       console.warn(`[XTREAM] ${label}: resposta inválida tipo ${typeof data} (tentativa ${attempt})`);
-      if (attempt < retries) continue;
+      if (attempt < retries) { await backoff(attempt); continue; }
       return [];
     } catch (err) {
-      console.warn(`[XTREAM] ${label}: falhou tentativa ${attempt}/${retries} - ${err.message}`);
+      const is429 = err.response && err.response.status === 429;
+      const delay = is429 ? 5000 * attempt : 2000 * attempt;
+      console.warn(`[XTREAM] ${label}: falhou tentativa ${attempt}/${retries} - ${err.message}${is429 ? ' (rate limited, aguardando mais)' : ''}`);
       if (attempt < retries) {
-        // Wait before retry (exponential backoff)
-        await new Promise(r => setTimeout(r, 2000 * attempt));
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
       return [];
     }
   }
   return [];
+}
+
+function backoff(attempt) {
+  return new Promise(r => setTimeout(r, 2000 * attempt));
 }
 
 // ===================== XTREAM CODES =====================
@@ -742,23 +745,28 @@ app.post('/api/load-xtream', async (req, res) => {
       return res.end();
     }
 
-    send({ type: 'progress', message: 'Autenticado! Carregando categorias de TV...', percent: 10 });
-    const liveCats = await fetchXtreamApi(`${base}&action=get_live_categories`, 'Categorias TV', 30000);
-    send({ type: 'progress', message: `Categorias de TV: ${liveCats.length}. Carregando canais...`, percent: 20 });
+    // Load in groups with pauses to avoid 429 rate limiting
+    send({ type: 'progress', message: 'Autenticado! Carregando TV ao vivo...', percent: 10 });
+    const [liveCats, liveStreams] = await Promise.all([
+      fetchXtreamApi(`${base}&action=get_live_categories`, 'Categorias TV', 30000),
+      fetchXtreamApi(`${base}&action=get_live_streams`, 'Canais TV', 120000),
+    ]);
+    send({ type: 'progress', message: `${liveStreams.length} canais ao vivo. Carregando filmes...`, percent: 35 });
 
-    const liveStreams = await fetchXtreamApi(`${base}&action=get_live_streams`, 'Canais TV', 120000);
-    send({ type: 'progress', message: `${liveStreams.length} canais ao vivo. Carregando categorias de filmes...`, percent: 35 });
+    await new Promise(r => setTimeout(r, 1000));
 
-    const vodCats = await fetchXtreamApi(`${base}&action=get_vod_categories`, 'Categorias Filmes', 30000);
-    send({ type: 'progress', message: `Categorias de filmes: ${vodCats.length}. Carregando filmes...`, percent: 45 });
+    const [vodCats, vodStreams] = await Promise.all([
+      fetchXtreamApi(`${base}&action=get_vod_categories`, 'Categorias Filmes', 30000),
+      fetchXtreamApi(`${base}&action=get_vod_streams`, 'Filmes', 120000),
+    ]);
+    send({ type: 'progress', message: `${vodStreams.length} filmes. Carregando series...`, percent: 60 });
 
-    const vodStreams = await fetchXtreamApi(`${base}&action=get_vod_streams`, 'Filmes', 120000);
-    send({ type: 'progress', message: `${vodStreams.length} filmes. Carregando categorias de series...`, percent: 60 });
+    await new Promise(r => setTimeout(r, 1000));
 
-    const seriesCats = await fetchXtreamApi(`${base}&action=get_series_categories`, 'Categorias Series', 30000);
-    send({ type: 'progress', message: `Categorias de series: ${seriesCats.length}. Carregando series...`, percent: 70 });
-
-    const seriesData = await fetchXtreamApi(`${base}&action=get_series`, 'Series', 120000);
+    const [seriesCats, seriesData] = await Promise.all([
+      fetchXtreamApi(`${base}&action=get_series_categories`, 'Categorias Series', 30000),
+      fetchXtreamApi(`${base}&action=get_series`, 'Series', 120000),
+    ]);
     send({ type: 'progress', message: `${seriesData.length} series. Montando playlist...`, percent: 85 });
 
     const xtreamCfg = { server: cleanServer, username, password };
@@ -863,16 +871,26 @@ app.post('/api/refresh', async (req, res) => {
       }
 
       send({ type: 'progress', message: 'Carregando TV ao vivo...', percent: 15 });
-      const liveCats = await fetchXtreamApi(`${base}&action=get_live_categories`, 'Categorias TV', 30000);
-      const liveStreams = await fetchXtreamApi(`${base}&action=get_live_streams`, 'Canais TV', 120000);
+      const [liveCats, liveStreams] = await Promise.all([
+        fetchXtreamApi(`${base}&action=get_live_categories`, 'Categorias TV', 30000),
+        fetchXtreamApi(`${base}&action=get_live_streams`, 'Canais TV', 120000),
+      ]);
+
+      await new Promise(r => setTimeout(r, 1000));
 
       send({ type: 'progress', message: 'Carregando filmes...', percent: 40 });
-      const vodCats = await fetchXtreamApi(`${base}&action=get_vod_categories`, 'Categorias Filmes', 30000);
-      const vodStreams = await fetchXtreamApi(`${base}&action=get_vod_streams`, 'Filmes', 120000);
+      const [vodCats, vodStreams] = await Promise.all([
+        fetchXtreamApi(`${base}&action=get_vod_categories`, 'Categorias Filmes', 30000),
+        fetchXtreamApi(`${base}&action=get_vod_streams`, 'Filmes', 120000),
+      ]);
+
+      await new Promise(r => setTimeout(r, 1000));
 
       send({ type: 'progress', message: 'Carregando séries...', percent: 65 });
-      const seriesCats = await fetchXtreamApi(`${base}&action=get_series_categories`, 'Categorias Series', 30000);
-      const seriesData = await fetchXtreamApi(`${base}&action=get_series`, 'Series', 120000);
+      const [seriesCats, seriesData] = await Promise.all([
+        fetchXtreamApi(`${base}&action=get_series_categories`, 'Categorias Series', 30000),
+        fetchXtreamApi(`${base}&action=get_series`, 'Series', 120000),
+      ]);
 
       send({ type: 'progress', message: 'Montando playlist...', percent: 85 });
       const xtreamCfg = { server, username, password };
@@ -1172,7 +1190,9 @@ app.get('/api/proxy', (req, res) => {
     upstreamRes.pipe(res);
 
     upstreamRes.on('error', (err) => {
-      console.error('[PROXY] Stream error:', err.message);
+      if (err.code !== 'ECONNRESET' && err.message !== 'socket hang up') {
+        console.error('[PROXY] Stream error:', err.message);
+      }
       if (!res.writableEnded) res.end();
     });
 
@@ -1189,7 +1209,10 @@ app.get('/api/proxy', (req, res) => {
   });
 
   upstreamReq.on('error', (err) => {
-    console.error('[PROXY] Request error:', err.message);
+    // socket hang up / ECONNRESET are normal when client disconnects
+    if (err.code !== 'ECONNRESET' && err.message !== 'socket hang up') {
+      console.error('[PROXY] Request error:', err.message);
+    }
     if (!res.headersSent) res.status(502).send('Proxy error');
   });
 
