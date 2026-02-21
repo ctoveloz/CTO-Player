@@ -61,24 +61,17 @@
   <!-- DASHBOARD VIEW -->
   <div id="dashboard-view" class="view">
     <nav class="navbar topbar-nav px-3 flex-shrink-0">
-      <div class="d-flex align-items-center gap-2">
-        <button id="btn-back-login" class="btn btn-sm btn-outline-light border-0 opacity-75" title="Voltar"><i class="bi bi-arrow-left"></i></button>
-        <span class="navbar-brand mb-0 fw-bold text-white"><i class="bi bi-play-fill text-primary me-1"></i>CtoPlayer</span>
-        <button class="btn btn-sm btn-outline-light border-0 opacity-75 d-md-none" data-bs-toggle="offcanvas" data-bs-target="#sidebar-offcanvas" title="Categorias"><i class="bi bi-list"></i></button>
+      <span class="navbar-brand mb-0 fw-bold text-white"><i class="bi bi-play-fill text-primary me-1"></i>CtoPlayer</span>
+      <!-- Desktop controls -->
+      <div class="d-none d-md-flex align-items-center gap-2 flex-grow-1 justify-content-center">
+        <div class="d-flex gap-1 tab-group">
+          <button class="btn btn-sm tab active" data-type="live">TV ao Vivo</button>
+          <button class="btn btn-sm tab" data-type="movies">Filmes</button>
+          <button class="btn btn-sm tab" data-type="series">S&#233;ries</button>
+        </div>
       </div>
-      <div class="d-none d-sm-flex gap-1 tab-group">
-        <button class="btn btn-sm tab active" data-type="live">TV ao Vivo</button>
-        <button class="btn btn-sm tab" data-type="movies">Filmes</button>
-        <button class="btn btn-sm tab" data-type="series">S&#233;ries</button>
-      </div>
-      <!-- Mobile tabs -->
-      <div class="d-flex d-sm-none gap-1 tab-group">
-        <button class="btn btn-sm tab-mobile active" data-type="live"><i class="bi bi-tv"></i></button>
-        <button class="btn btn-sm tab-mobile" data-type="movies"><i class="bi bi-film"></i></button>
-        <button class="btn btn-sm tab-mobile" data-type="series"><i class="bi bi-collection-play"></i></button>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <select id="sort-select" class="form-select form-select-sm d-none d-lg-block" style="width:auto">
+      <div class="d-none d-md-flex align-items-center gap-2">
+        <select id="sort-select" class="form-select form-select-sm" style="width:auto">
           <option value="newest">&#218;ltimos adicionados</option>
           <option value="oldest">Primeiros adicionados</option>
           <option value="az">A - Z</option>
@@ -88,7 +81,35 @@
         <button id="btn-settings" class="btn btn-sm btn-outline-light border-0 opacity-75" title="Configura&#231;&#245;es"><i class="bi bi-gear"></i></button>
         <button id="btn-logout" class="btn btn-sm btn-outline-light border-0 opacity-75" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
       </div>
+      <!-- Mobile: toggler buttons -->
+      <div class="d-flex d-md-none align-items-center gap-1">
+        <button class="btn btn-sm btn-outline-light border-0 opacity-75" data-bs-toggle="offcanvas" data-bs-target="#sidebar-offcanvas" title="Categorias"><i class="bi bi-list"></i></button>
+        <button class="btn btn-sm btn-outline-light border-0 opacity-75" data-bs-toggle="collapse" data-bs-target="#topbar-collapse" title="Menu"><i class="bi bi-three-dots-vertical"></i></button>
+      </div>
     </nav>
+    <!-- Mobile collapsed menu -->
+    <div class="collapse topbar-nav border-top border-secondary flex-shrink-0" id="topbar-collapse">
+      <div class="d-md-none p-2 d-flex flex-column gap-2">
+        <div class="d-flex gap-1 tab-group justify-content-center">
+          <button class="btn btn-sm tab-mobile active" data-type="live"><i class="bi bi-tv me-1"></i>TV</button>
+          <button class="btn btn-sm tab-mobile" data-type="movies"><i class="bi bi-film me-1"></i>Filmes</button>
+          <button class="btn btn-sm tab-mobile" data-type="series"><i class="bi bi-collection-play me-1"></i>S&#233;ries</button>
+        </div>
+        <div class="d-flex gap-2">
+          <input type="search" id="search-input-mobile" class="form-control form-control-sm flex-grow-1" placeholder="Buscar..." autocomplete="off">
+          <select id="sort-select-mobile" class="form-select form-select-sm" style="width:auto">
+            <option value="newest">Recentes</option>
+            <option value="oldest">Antigos</option>
+            <option value="az">A - Z</option>
+            <option value="za">Z - A</option>
+          </select>
+        </div>
+        <div class="d-flex gap-2 justify-content-center">
+          <button id="btn-settings-mobile" class="btn btn-sm btn-outline-light border-0 opacity-75"><i class="bi bi-gear me-1"></i>Config</button>
+          <button id="btn-logout-mobile" class="btn btn-sm btn-outline-light border-0 opacity-75"><i class="bi bi-box-arrow-right me-1"></i>Sair</button>
+        </div>
+      </div>
+    </div>
 
     <div class="d-flex flex-grow-1 overflow-hidden">
       <!-- Sidebar desktop -->
@@ -248,7 +269,7 @@
         <button id="btn-next-ep" class="btn btn-sm btn-outline-light border-0" title="Pr&#243;ximo epis&#243;dio"><i class="bi bi-skip-end-fill"></i></button>
       </div>
     </div>
-    <video id="video-player" controls autoplay></video>
+    <video id="video-player" controls autoplay playsinline></video>
     <div id="player-error" class="player-error" hidden>
       <p class="text-light opacity-50">Falha ao reproduzir o stream</p>
       <button id="btn-retry" class="btn btn-primary btn-sm">Tentar novamente</button>

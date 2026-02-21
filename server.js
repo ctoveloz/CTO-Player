@@ -922,9 +922,9 @@ app.get('/api/playlist', (req, res) => {
   if (!checkRateLimit(`api:${ip}`, 60)) {
     return res.status(429).json({ error: 'Too many requests' });
   }
-  const { entry } = getSession(req);
+  const { sid, entry } = getSession(req);
   if (!entry || !entry.playlist) return res.status(404).json({ error: 'Nenhuma playlist carregada' });
-  res.json(entry.playlist);
+  res.json({ ...entry.playlist, sid });
 });
 
 app.delete('/api/session', (req, res) => {

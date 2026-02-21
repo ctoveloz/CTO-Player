@@ -1,3 +1,15 @@
+// ===================== SESSION KEY =====================
+
+let _sessionId = 'default';
+
+function setSessionId(sid) {
+  if (sid) _sessionId = sid;
+}
+
+function storageKey(name) {
+  return `ctoplayer_${_sessionId}_${name}`;
+}
+
 // ===================== SETTINGS =====================
 
 const defaultSettings = {
@@ -10,6 +22,7 @@ const defaultSettings = {
 
 function loadSettings() {
   try {
+    // Settings are global (not per-session)
     const saved = JSON.parse(localStorage.getItem('ctoplayer_settings'));
     return { ...defaultSettings, ...saved };
   } catch { return { ...defaultSettings }; }
@@ -23,12 +36,12 @@ function saveSettings(settings) {
 // ===================== FAVORITES =====================
 
 function getFavorites() {
-  try { return JSON.parse(localStorage.getItem('ctoplayer_favorites')) || {}; }
+  try { return JSON.parse(localStorage.getItem(storageKey('favorites'))) || {}; }
   catch { return {}; }
 }
 
 function saveFavorites(favs) {
-  localStorage.setItem('ctoplayer_favorites', JSON.stringify(favs));
+  localStorage.setItem(storageKey('favorites'), JSON.stringify(favs));
 }
 
 function getFavKey(item) {
@@ -52,12 +65,12 @@ function toggleFavorite(item) {
 // ===================== WATCH PROGRESS =====================
 
 function getProgressData() {
-  try { return JSON.parse(localStorage.getItem('ctoplayer_progress')) || {}; }
+  try { return JSON.parse(localStorage.getItem(storageKey('progress'))) || {}; }
   catch { return {}; }
 }
 
 function saveProgressData(data) {
-  localStorage.setItem('ctoplayer_progress', JSON.stringify(data));
+  localStorage.setItem(storageKey('progress'), JSON.stringify(data));
 }
 
 function getItemProgress(url) {
@@ -140,7 +153,9 @@ async function restoreSession() {
   try {
     const res = await fetch('/api/playlist');
     if (res.ok) {
-      state.playlist = await res.json();
+      const data = await res.json();
+      setSessionId(data.sid);
+      state.playlist = data;
       showDashboard();
       refreshPlaylist(true);
     }
@@ -185,8 +200,6 @@ function setupLogin() {
     if (!server || !username || !password) return;
     await loadPlaylist('/api/load-xtream', { server, username, password }, e.target);
   });
-
-  $('#btn-back-login').addEventListener('click', logout);
 
   async function logout() {
     state.playlist = null;
@@ -256,7 +269,9 @@ async function loadPlaylist(endpoint, body, form) {
     if (lastData && lastData.type === 'error') throw new Error(lastData.error);
 
     const playlistRes = await fetch('/api/playlist');
-    state.playlist = await playlistRes.json();
+    const playlistData = await playlistRes.json();
+    setSessionId(playlistData.sid);
+    state.playlist = playlistData;
     showDashboard();
   } catch (err) {
     errorEl.textContent = err.message;
@@ -283,33 +298,62 @@ function setupDashboard() {
       state.tab = type;
       state.category = 'all';
       state.sort = 'newest';
+      state.search = '';
       $('#sort-select').value = 'newest';
+      $('#search-input').value = '';
+      if ($('#sort-select-mobile')) $('#sort-select-mobile').value = 'newest';
+      if ($('#search-input-mobile')) $('#search-input-mobile').value = '';
       renderSidebar();
       renderContent();
     });
   });
 
+  // Search (desktop + mobile synced)
   let searchTimeout;
-  $('#search-input').addEventListener('input', (e) => {
+  function handleSearch(value) {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-      state.search = e.target.value.trim().toLowerCase();
+      state.search = value.trim().toLowerCase();
       renderContent();
     }, 200);
+  }
+  $('#search-input').addEventListener('input', (e) => {
+    handleSearch(e.target.value);
+    if ($('#search-input-mobile')) $('#search-input-mobile').value = e.target.value;
   });
+  if ($('#search-input-mobile')) {
+    $('#search-input-mobile').addEventListener('input', (e) => {
+      handleSearch(e.target.value);
+      $('#search-input').value = e.target.value;
+    });
+  }
 
-  $('#sort-select').addEventListener('change', (e) => {
-    state.sort = e.target.value;
+  // Sort (desktop + mobile synced)
+  function handleSort(value) {
+    state.sort = value;
     renderContent();
+  }
+  $('#sort-select').addEventListener('change', (e) => {
+    handleSort(e.target.value);
+    if ($('#sort-select-mobile')) $('#sort-select-mobile').value = e.target.value;
   });
+  if ($('#sort-select-mobile')) {
+    $('#sort-select-mobile').addEventListener('change', (e) => {
+      handleSort(e.target.value);
+      $('#sort-select').value = e.target.value;
+    });
+  }
 
-  $('#btn-logout').addEventListener('click', async () => {
+  // Logout (desktop + mobile)
+  async function doLogout() {
     state.playlist = null;
     state.allFilteredItems = [];
     state.itemsToShow = 200;
     await fetch('/api/session', { method: 'DELETE' });
     showView('login');
-  });
+  }
+  $('#btn-logout').addEventListener('click', doLogout);
+  if ($('#btn-logout-mobile')) $('#btn-logout-mobile').addEventListener('click', doLogout);
 
   // Infinite scroll
   const contentArea = $('#content-area');
@@ -331,6 +375,8 @@ function showDashboard() {
   state.sort = 'newest';
   $('#search-input').value = '';
   $('#sort-select').value = 'newest';
+  if ($('#search-input-mobile')) $('#search-input-mobile').value = '';
+  if ($('#sort-select-mobile')) $('#sort-select-mobile').value = 'newest';
 
   $$('.tab').forEach(b => b.classList.remove('active'));
   $$('.tab-mobile').forEach(b => b.classList.remove('active'));
@@ -397,7 +443,9 @@ async function refreshPlaylist(silent) {
     if (success) {
       const playlistRes = await fetch('/api/playlist');
       if (playlistRes.ok) {
-        state.playlist = await playlistRes.json();
+        const data = await playlistRes.json();
+        setSessionId(data.sid);
+        state.playlist = data;
         renderSidebar();
         renderContent();
       }
@@ -862,17 +910,48 @@ function renderSeasons(data) {
 // ===================== PLAYER =====================
 
 function setupPlayer() {
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
   try {
     state.plyrInstance = new Plyr('#video-player', {
       controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
       settings: ['quality', 'speed'],
-      tooltips: { controls: true, seek: true },
+      tooltips: { controls: !isMobile, seek: true },
       keyboard: { focused: true, global: true },
       invertTime: false,
       blankVideo: '',
+      clickToPlay: true,
+      hideControls: true,
+      resetOnEnd: false,
+      fullscreen: { enabled: true, fallback: true, iosNative: true },
     });
   } catch (e) {
     console.warn('[PLAYER] Plyr init failed:', e.message);
+  }
+
+  // Mobile: tap to toggle topbar visibility
+  if (isMobile) {
+    let controlsTimer = null;
+    const playerView = $('#player-view');
+
+    function showMobileControls() {
+      playerView.classList.remove('controls-hidden');
+      clearTimeout(controlsTimer);
+      controlsTimer = setTimeout(() => {
+        playerView.classList.add('controls-hidden');
+      }, 4000);
+    }
+
+    playerView.addEventListener('touchstart', (e) => {
+      // Don't interfere with Plyr controls or buttons
+      if (e.target.closest('.plyr__controls') || e.target.closest('.player-topbar') || e.target.closest('button')) return;
+      showMobileControls();
+    }, { passive: true });
+
+    // Show controls when playback starts
+    if (state.plyrInstance) {
+      state.plyrInstance.on('play', showMobileControls);
+    }
   }
 
   $('#btn-back-player').addEventListener('click', stopPlayback);
@@ -1189,6 +1268,12 @@ function stopPlayback() {
 
 function setupSettings() {
   $('#btn-settings').addEventListener('click', openSettings);
+  if ($('#btn-settings-mobile')) $('#btn-settings-mobile').addEventListener('click', () => {
+    // Close mobile menu before opening settings
+    const collapse = bootstrap.Collapse.getInstance($('#topbar-collapse'));
+    if (collapse) collapse.hide();
+    openSettings();
+  });
   $('#btn-back-settings').addEventListener('click', () => showView('dashboard'));
   $('#btn-refresh').addEventListener('click', () => refreshPlaylist(false));
 
@@ -1220,7 +1305,7 @@ function setupSettings() {
   // Clear progress
   $('#btn-clear-progress').addEventListener('click', () => {
     if (confirm('Remover todo o hist\u00f3rico de assistidos?')) {
-      localStorage.removeItem('ctoplayer_progress');
+      localStorage.removeItem(storageKey('progress'));
       const btn = $('#btn-clear-progress');
       btn.innerHTML = '<i class="bi bi-check me-1"></i>Limpo!';
       setTimeout(() => { btn.innerHTML = '<i class="bi bi-trash me-1"></i>Limpar'; }, 1500);
@@ -1230,7 +1315,7 @@ function setupSettings() {
   // Clear favorites
   $('#btn-clear-favorites').addEventListener('click', () => {
     if (confirm('Remover todos os favoritos?')) {
-      localStorage.removeItem('ctoplayer_favorites');
+      localStorage.removeItem(storageKey('favorites'));
       renderSidebar();
       const btn = $('#btn-clear-favorites');
       btn.innerHTML = '<i class="bi bi-check me-1"></i>Limpo!';
